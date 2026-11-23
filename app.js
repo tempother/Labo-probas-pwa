@@ -20,7 +20,16 @@
       priorWeight: 40,
       customAlpha: 1,
       customBeta: 49,
-      credLevel: 0.95
+      credLevel: 0.95,
+      m2ClassesCount: 5,
+      m2Scope: "all",
+      m2Classes: [
+        { name: "R1", n: 40, d: 0 },
+        { name: "R2", n: 35, d: 0 },
+        { name: "R3", n: 30, d: 1 },
+        { name: "R4", n: 20, d: 1 },
+        { name: "R5", n: 10, d: 2 }
+      ],
     }
   };
 
@@ -804,24 +813,28 @@
           </div>
         </div>
 
-        <div class="theory-block">
-          <h3>4. Pseudo-données, choix du poids n<sub>0</sub> et familles de priors</h3>
+          <div class="theory-block">
+          <h3>4. Pseudo-données, poids du <em>prior</em> (<em>n<sub>0</sub></em>) et choix au-delà de la forme</h3>
           <p>
-            Dans <strong>Bêta(α<sub>0</sub> + d, β<sub>0</sub> + n − d)</strong>, <strong>(α<sub>0</sub>, β<sub>0</sub>)</strong> jouent le rôle de <strong>pseudo-données</strong> (<em>α<sub>0</sub></em> défauts virtuels et <em>β<sub>0</sub></em> sains virtuels) additionnées aux <strong>données réelles</strong> (<em>d</em> défauts et <em>n − d</em> sains). Leur somme <strong>n<sub>0</sub> = α<sub>0</sub> + β<sub>0</sub></strong> est le <strong>poids du prior</strong> dans la moyenne <em>posterior</em> :
+            Pour un <em>prior</em> <strong>Bêta(α<sub>0</sub>, β<sub>0</sub>)</strong>, la somme <strong>n<sub>0</sub> = α<sub>0</sub> + β<sub>0</sub></strong>, également appelée <strong>pseudo-données</strong> (ou pseudo-observations), représente le poids du <em>prior</em> dans la moyenne <em>posterior</em> : elle équivaut au volume d’expositions fictives (<em>α<sub>0</sub></em> défauts et <em>β<sub>0</sub></em> non-défauts) porté par la loi a priori.
+          </p>
+          <p>
+            La moyenne <em>posterior</em> s’écrit alors comme une moyenne pondérée entre la moyenne du <em>prior</em> <em>μ<sub>0</sub> = α<sub>0</sub> / n<sub>0</sub></em> et le taux observé <em>p̂ = d / n</em> :
           </p>
           <div class="formula-callout">
             E[p | d, n] = [ n<sub>0</sub> / (n<sub>0</sub> + n) ] · μ<sub>0</sub> + [ n / (n<sub>0</sub> + n) ] · (d / n)
           </div>
           <p>
-            <strong>Comment choisir n<sub>0</sub> au-delà de la forme ?</strong> Si tu disposes d’un historique (par exemple 40 observations sur 5 ans), un <em>n<sub>0</sub></em> comparable (ex. 40) équilibre passé et données récentes ; un <em>n<sub>0</sub></em> plus grand (ex. 100, 200 ou 400) renforce fortement l’ancrage sur la référence quand elle est jugée très fiable (au risque d’atténuer la réaction à un changement récent) ; un <em>n<sub>0</sub></em> très faible (ex. 1) laisse vite dominer les données réelles. Le choix doit toujours être justifié a priori.
+            Le poids relatif du <em>prior</em> vaut donc <strong>n<sub>0</sub> / (n<sub>0</sub> + n)</strong> et celui des données observées vaut <strong>n / (n<sub>0</sub> + n)</strong> : l’équilibre se joue entre les <strong>pseudo-données</strong> du <em>prior</em> et les <strong>données observées</strong> sur l’échantillon (<em>n</em>), sans qu’il y ait de séparation temporelle automatique entre « passé » et « récent ».
           </p>
           <ul>
-            <li><strong>Uniforme Bêta(1, 1) :</strong> aucune préférence entre 0 % et 100 % avant observation (<em>n<sub>0</sub> = 2</em>, moyenne a priori 50 %).</li>
-            <li><strong>Jeffreys Bêta(0.5, 0.5) :</strong> prior de référence à poids très léger (<em>n<sub>0</sub> = 1</em>), construit à partir du modèle lui-même. Sa forme en « U » accorde davantage de poids aux bornes 0 et 1 : il s’efface vite quand <em>n</em> grandit, mais sur un très petit <em>n</em> il n’est pas neutre et tire vers les extrêmes.</li>
-            <li><strong>Informatif Bêta(α<sub>0</sub>, β<sub>0</sub>) :</strong> traduit une croyance métier ciblée (PD benchmark <em>μ<sub>0</sub></em> et poids <em>n<sub>0</sub></em>). Quand <em>n</em> est petit, le prior pèse fortement ; quand <em>n</em> devient grand, <em>n / (n<sub>0</sub> + n)</em> tend vers 1 et l’influence du prior s’efface.</li>
+            <li><strong>Au-delà de la forme de la courbe :</strong> fixer une moyenne <em>μ<sub>0</sub></em> et une allure ne suffit pas ; choisir <em>n<sub>0</sub></em> revient à fixer un <strong>budget de conviction</strong> (à combien d’expositions observées on assimile le poids du <em>prior</em>).</li>
+            <li><strong>Un grand <em>n<sub>0</sub></em> face à un petit <em>n</em> :</strong> le <em>prior</em> domine fortement l’estimation ; ce choix n’est défendable que s’il est justifié <em>ex ante</em> par une source documentée (benchmark, portefeuille frère, historique de référence).</li>
+            <li><strong>Un <em>n<sub>0</sub></em> modéré :</strong> agit comme garde-fou lorsque <em>n</em> est faible ou que <em>d = 0</em>, tout en laissant les données observées prendre le dessus dès que des observations suffisantes s’accumulent.</li>
           </ul>
           ${buildBetaShapesSvg()}
         </div>
+
 
         <div class="theory-block">
           <h3>5. Application au Mode 1 : portefeuille à faible défaut (LDP)</h3>
@@ -1037,6 +1050,26 @@
         <h3>2. Posterior &amp; comparaison</h3>
         <div id="bayes-lab-dynamic">${renderBayesDynamicHtml(b, m)}</div>
       </div>
+                <div class="card" id="bayes-mode2-card">
+            <h2>Mode 2 — Échelle de notation multi-classes (3–10 classes)</h2>
+            <p class="helper-text">
+              Conjugaison Bêta-Bernoulli par classe (pas d’agrégation globale des PD). La monotonie est affichée à titre de diagnostic analytique sans correction automatique.
+            </p>
+            <div class="form-grid">
+              <label class="field">
+                <span>Nombre de classes (3–10)</span>
+                <input id="m2-classes-count" type="number" min="3" max="10" value="${b.m2ClassesCount}" />
+              </label>
+              <label class="field">
+                <span>Périmètre bayésien</span>
+                <select id="m2-scope">
+                  <option value="all" ${b.m2Scope === "all" ? "selected" : ""}>Toutes les classes</option>
+                  <option value="zero_only" ${b.m2Scope === "zero_only" ? "selected" : ""}>Classes à 0 défaut uniquement</option>
+                </select>
+              </label>
+            </div>
+            <div id="bayes-m2-body">${renderBayesMode2Html(b, m)}</div>
+          </div>
     `;
     bindBayesLabEvents();
   }
@@ -1223,8 +1256,128 @@
         renderBayesLab();
       });
     }
+        const m2CountEl = document.getElementById("m2-classes-count");
+      const m2ScopeEl = document.getElementById("m2-scope");
+      if (m2CountEl) {
+        m2CountEl.addEventListener("change", () => {
+          const count = Math.min(10, Math.max(3, parseInt(m2CountEl.value, 10) || 5));
+          state.bayes.m2ClassesCount = count;
+          const next = [];
+          for (let i = 0; i < count; i++) {
+            next.push(
+              state.bayes.m2Classes[i] || {
+                name: `R${i + 1}`,
+                n: Math.max(5, 40 - i * 4),
+                d: i < 2 ? 0 : Math.floor((i - 1) / 2)
+              }
+            );
+          }
+          state.bayes.m2Classes = next;
+          saveState();
+          renderBayesLab();
+        });
+      }
+      if (m2ScopeEl) {
+        m2ScopeEl.addEventListener("change", () => {
+          state.bayes.m2Scope = m2ScopeEl.value === "zero_only" ? "zero_only" : "all";
+          saveState();
+          renderBayesLab();
+        });
+      }
+      document.querySelectorAll("[data-m2-n]").forEach((inp) => {
+        inp.addEventListener("change", () => {
+          const idx = parseInt(inp.dataset.m2N, 10);
+          if (!state.bayes.m2Classes[idx]) return;
+          const val = Math.max(1, parseInt(inp.value, 10) || 1);
+          state.bayes.m2Classes[idx].n = val;
+          if (state.bayes.m2Classes[idx].d > val) {
+            state.bayes.m2Classes[idx].d = val;
+          }
+          saveState();
+          renderBayesLab();
+        });
+      });
+      document.querySelectorAll("[data-m2-d]").forEach((inp) => {
+        inp.addEventListener("change", () => {
+          const idx = parseInt(inp.dataset.m2D, 10);
+          if (!state.bayes.m2Classes[idx]) return;
+          const maxD = state.bayes.m2Classes[idx].n;
+          const val = Math.min(maxD, Math.max(0, parseInt(inp.value, 10) || 0));
+          state.bayes.m2Classes[idx].d = val;
+          saveState();
+          renderBayesLab();
+        });
+      });
   }
 
+    function renderBayesMode2Html(b, m) {
+      const count = Math.min(10, Math.max(3, parseInt(b.m2ClassesCount, 10) || 5));
+      const scope = b.m2Scope === "zero_only" ? "zero_only" : "all";
+      const rows = [];
+      for (let i = 0; i < count; i++) {
+        const item = b.m2Classes[i] || { name: `R${i + 1}`, n: 20, d: 0 };
+        const n = Math.max(1, parseInt(item.n, 10) || 1);
+        const d = Math.min(n, Math.max(0, parseInt(item.d, 10) || 0));
+        const isZero = d === 0;
+        const activeBayes = scope === "all" || isZero;
+        const alphaPost = activeBayes ? m.alpha0 + d : null;
+        const betaPost = activeBayes ? m.beta0 + (n - d) : null;
+        const pdPost = activeBayes ? alphaPost / (alphaPost + betaPost) : d / n;
+        rows.push({
+          idx: i,
+          name: item.name || `R${i + 1}`,
+          n,
+          d,
+          isZero,
+          activeBayes,
+          pdObs: d / n,
+          pdPost
+        });
+      }
+
+      const inversions = [];
+      for (let i = 1; i < rows.length; i++) {
+        if (rows[i].pdPost < rows[i - 1].pdPost) {
+          inversions.push(`${rows[i - 1].name} (${(rows[i - 1].pdPost * 100).toFixed(2)} %) > ${rows[i].name} (${(rows[i].pdPost * 100).toFixed(2)} %)`);
+        }
+      }
+
+      const diagHtml = inversions.length
+        ? `<p class="helper-text"><strong>Diagnostic monotonie :</strong> inversion détectée (${inversions.join(" ; ")}). Aucune correction automatique appliquée.</p>`
+        : `<p class="helper-text"><strong>Diagnostic monotonie :</strong> aucune inversion détectée sur les PD estimées de R1 à R${count}.</p>`;
+
+      const bodyRows = rows
+        .map(
+          (r) => `
+          <tr>
+            <td><strong>${r.name}</strong></td>
+            <td><input type="number" min="1" value="${r.n}" data-m2-n="${r.idx}" /></td>
+            <td><input type="number" min="0" max="${r.n}" value="${r.d}" data-m2-d="${r.idx}" /></td>
+            <td>${r.activeBayes ? "Bayésien" : "Hors périmètre (0 défaut uniquement)"}</td>
+            <td>${(r.pdObs * 100).toFixed(2)} %</td>
+            <td><strong>${(r.pdPost * 100).toFixed(2)} %</strong></td>
+          </tr>`
+        )
+        .join("");
+
+      return `
+        ${diagHtml}
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Classe</th>
+                <th>Expositions (n)</th>
+                <th>Défauts (d)</th>
+                <th>Statut</th>
+                <th>PD obs.</th>
+                <th>PD estimée</th>
+              </tr>
+            </thead>
+            <tbody>${bodyRows}</tbody>
+          </table>
+        </div>`;
+    }
 
   function setView(viewName) {
     state.view = viewName;
