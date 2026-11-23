@@ -909,9 +909,7 @@
     `;
   }
 
-  function renderBayesLab() {
-    if (!els.bayesLabContent) return;
-    const b = state.bayes;
+  function computeBayesMetrics(b) {
     const n = Math.max(1, parseInt(b.n, 10) || 1);
     const d = Math.min(n, Math.max(0, parseInt(b.d, 10) || 0));
     const s = n - d;
@@ -924,7 +922,12 @@
     const freqPd = d / n;
     const priorMean = alpha0 / n0;
     const postMean = alphaN / totalN;
-    const postMode = alphaN > 1 && betaN > 1 ? (alphaN - 1) / (alphaN + betaN - 2) : alphaN <= 1 && betaN > alphaN ? 0 : null;
+    const postMode =
+      alphaN > 1 && betaN > 1
+        ? (alphaN - 1) / (alphaN + betaN - 2)
+        : alphaN <= 1 && betaN > alphaN
+        ? 0
+        : null;
     const postSd = Math.sqrt((alphaN * betaN) / (Math.pow(totalN, 2) * (totalN + 1)));
     const tail = (1 - b.credLevel) / 2;
     const ciLow = betaQuantile(tail, alphaN, betaN);
@@ -932,27 +935,99 @@
     const wPriorPct = (n0 / totalN) * 100;
     const wDataPct = (n / totalN) * 100;
 
+    return {
+      n,
+      d,
+      s,
+      alpha0,
+      beta0,
+      n0,
+      alphaN,
+      betaN,
+      freqPd,
+      priorMean,
+      postMean,
+      postMode,
+      postSd,
+      ciLow,
+      ciHigh,
+      wPriorPct,
+      wDataPct
+    };
+  }
+
+  function renderBayesPriorMetaHtml(b, m) {
+    if (b.priorType === "informative") {
+      return `<p id="by-prior-meta" class="helper-text">α<sub>0</sub> = ${m.alpha0.toFixed(3)}, β<sub>0</sub> = ${m.beta0.toFixed(3)} (moyenne prior = ${(m.priorMean * 100).toFixed(2)} %, poids n<sub>0</sub> = ${m.n0.toFixed(2)}).</p>`;
+    }
+    if (b.priorType === "custom") {
+      return `<p id="by-prior-meta" class="helper-text">Poids total n<sub>0</sub> = ${m.n0.toFixed(2)} (moyenne prior = ${(m.priorMean * 100).toFixed(2)} %).</p>`;
+    }
+    return `<p id="by-prior-meta" class="helper-text">α<sub>0</sub> = ${m.alpha0}, β<sub>0</sub> = ${m.beta0} (poids total n<sub>0</sub> = ${m.n0}, moyenne prior = ${(m.priorMean * 100).toFixed(2)} %).</p>`;
+  }
+
+  function renderBayesDynamicHtml(b, m) {
+    return `
+      <div class="formula-callout">Posterior : Bêta(${m.alphaN.toFixed(2)}, ${m.betaN.toFixed(2)})</div>
+      <div class="bayes-kpi-grid">
+        <div class="kpi-box"><div class="kpi-label">Moyenne posterior</div><div class="kpi-value">${(m.postMean * 100).toFixed(2)} %</div><div class="kpi-sub">Écart-type : ${(m.postSd * 100).toFixed(2)} %</div></div>
+        <div class="kpi-box"><div class="kpi-label">Fréquentiste d / n</div><div class="kpi-value">${(m.freqPd * 100).toFixed(2)} %</div><div class="kpi-sub">${m.d} / ${m.n} (${m.s} sains)</div></div>
+        <div class="kpi-box"><div class="kpi-label">IC ${Math.round(b.credLevel * 100)} %</div><div class="kpi-value">${(m.ciLow * 100).toFixed(2)} % – ${(m.ciHigh * 100).toFixed(2)} %</div><div class="kpi-sub">Quantiles Bêta</div></div>
+        <div class="kpi-box"><div class="kpi-label">Mode posterior</div><div class="kpi-value">${m.postMode !== null ? `${(m.postMode * 100).toFixed(2)} %` : "Bord / plat"}</div><div class="kpi-sub">Max densité</div></div>
+      </div>
+      <h4 class="result-section-title">Poids : Prior ${m.wPriorPct.toFixed(1)} % vs Données ${m.wDataPct.toFixed(1)} %</h4>
+      <div class="weight-bar"><div class="weight-prior" style="width:${m.wPriorPct.toFixed(1)}%"></div><div class="weight-data" style="width:${m.wDataPct.toFixed(1)}%"></div></div>
+      ${m.d === 0 ? `<div class="warn-box"><strong>d = 0 :</strong> fréquentiste = 0,00 %, moyenne posterior = <strong>${(m.postMean * 100).toFixed(2)} %</strong>.</div>` : ""}
+      ${buildPosteriorChartSvg(m.alpha0, m.beta0, m.alphaN, m.betaN, m.freqPd, m.ciLow, m.ciHigh, b.credLevel)}
+    `;
+  }
+
+  function updateBayesLabOutput() {
+    const b = state.bayes;
+    const m = computeBayesMetrics(b);
+    const metaEl = document.getElementById("by-prior-meta");
+    if (metaEl) {
+      metaEl.outerHTML = renderBayesPriorMetaHtml(b, m);
+    }
+    const dynEl = document.getElementById("bayes-lab-dynamic");
+    if (dynEl) {
+      dynEl.innerHTML = renderBayesDynamicHtml(b, m);
+    }
+  }
+
+  function renderBayesLab() {
+    if (!els.bayesLabContent) return;
+    const b = state.bayes;
+    const m = computeBayesMetrics(b);
+
     const priorInputsHtml =
       b.priorType === "informative"
-        ? `<div class="form-grid"><label class="field"><span>PD cible du prior (%)</span><input id="by-target-pd" type="number" inputmode="decimal" step="0.05" min="0.01" max="99" value="${b.targetPdPct}" /></label><label class="field"><span>Poids du prior n<sub>0</sub></span><input id="by-prior-weight" type="number" inputmode="decimal" step="1" min="0.5" value="${b.priorWeight}" /></label></div><p class="helper-text">α<sub>0</sub> = ${alpha0.toFixed(3)}, β<sub>0</sub> = ${beta0.toFixed(3)} (moyenne prior = ${(priorMean * 100).toFixed(2)} %).</p>`
+        ? `<div class="form-grid"><label class="field"><span>PD cible du prior (%)</span><input id="by-target-pd" type="number" inputmode="decimal" step="0.05" min="0.01" max="99" value="${b.targetPdPct}" /></label><label class="field"><span>Poids du prior n<sub>0</sub></span><input id="by-prior-weight" type="number" inputmode="decimal" step="1" min="0.5" value="${b.priorWeight}" /></label></div>${renderBayesPriorMetaHtml(b, m)}`
         : b.priorType === "custom"
-        ? `<div class="form-grid"><label class="field"><span>α<sub>0</sub></span><input id="by-custom-alpha" type="number" inputmode="decimal" step="0.1" min="0.05" value="${b.customAlpha}" /></label><label class="field"><span>β<sub>0</sub></span><input id="by-custom-beta" type="number" inputmode="decimal" step="0.1" min="0.5" value="${b.customBeta}" /></label></div><p class="helper-text">Poids total n<sub>0</sub> = ${n0.toFixed(2)} (moyenne prior = ${(priorMean * 100).toFixed(2)} %).</p>`
-        : `<p class="helper-text">α<sub>0</sub> = ${alpha0}, β<sub>0</sub> = ${beta0} (poids total n<sub>0</sub> = ${n0}, moyenne prior = ${(priorMean * 100).toFixed(2)} %).</p>`;
+        ? `<div class="form-grid"><label class="field"><span>α<sub>0</sub></span><input id="by-custom-alpha" type="number" inputmode="decimal" step="0.1" min="0.05" value="${b.customAlpha}" /></label><label class="field"><span>β<sub>0</sub></span><input id="by-custom-beta" type="number" inputmode="decimal" step="0.1" min="0.5" value="${b.customBeta}" /></label></div>${renderBayesPriorMetaHtml(b, m)}`
+        : renderBayesPriorMetaHtml(b, m);
 
     els.bayesLabContent.innerHTML = `
       <div class="card">
         <h2>Mode 1 — Segment / Portefeuille LDP (mono-segment)</h2>
+        <p class="helper-text">
+          <strong>Question posée dans les 3 cas :</strong> sachant un nombre de défauts <em>d</em> sur <em>n</em> expositions dans le cadre <em>X</em> (précisé ci-dessous), quelle probabilité de défaut (PD) retenir et avec quelle incertitude ?
+        </p>
+        <h3>Exemples pré-remplis</h3>
         <div class="actions-row">
           <button id="by-preset-ldp-zero" type="button" class="btn-ghost">Exemple LDP (n = 60, d = 0)</button>
           <button id="by-preset-small-n" type="button" class="btn-ghost">Petit échantillon (n = 4, d = 2)</button>
           <button id="by-preset-large-n" type="button" class="btn-ghost">Échantillon large (n = 800, d = 12)</button>
         </div>
+        <p class="helper-text">
+          <strong>Cadre X :</strong> <em>Exemple LDP</em> = portefeuille faible défaut sans défaut observé ; <em>Petit échantillon</em> = historique très court (4 expositions, 2 défauts) ; <em>Échantillon large</em> = portefeuille plus étoffé (800 expositions, 12 défauts).
+        </p>
       </div>
       <div class="card">
         <h3>1. Données &amp; prior</h3>
         <div class="form-grid">
-          <label class="field"><span>Expositions n</span><input id="by-n" type="number" inputmode="numeric" step="1" min="1" value="${n}" /></label>
-          <label class="field"><span>Défauts d</span><input id="by-d" type="number" inputmode="numeric" step="1" min="0" max="${n}" value="${d}" /></label>
+          <label class="field"><span>Expositions n</span><input id="by-n" type="number" inputmode="numeric" step="1" min="1" value="${m.n}" /></label>
+          <label class="field"><span>Défauts d</span><input id="by-d" type="number" inputmode="numeric" step="1" min="0" max="${m.n}" value="${m.d}" /></label>
           <label class="field"><span>Prior</span><select id="by-prior-type"><option value="informative" ${b.priorType === "informative" ? "selected" : ""}>Informatif</option><option value="uniform" ${b.priorType === "uniform" ? "selected" : ""}>Uniforme Bêta(1,1)</option><option value="jeffreys" ${b.priorType === "jeffreys" ? "selected" : ""}>Jeffreys Bêta(0.5,0.5)</option><option value="custom" ${b.priorType === "custom" ? "selected" : ""}>Personnalisé</option></select></label>
           <label class="field"><span>Crédibilité</span><select id="by-cred"><option value="0.95" ${b.credLevel === 0.95 ? "selected" : ""}>95 %</option><option value="0.9" ${b.credLevel === 0.9 ? "selected" : ""}>90 %</option></select></label>
         </div>
@@ -960,17 +1035,7 @@
       </div>
       <div class="card">
         <h3>2. Posterior &amp; comparaison</h3>
-        <div class="formula-callout">Posterior : Bêta(${alphaN.toFixed(2)}, ${betaN.toFixed(2)})</div>
-        <div class="bayes-kpi-grid">
-          <div class="kpi-box"><div class="kpi-label">Moyenne posterior</div><div class="kpi-value">${(postMean * 100).toFixed(2)} %</div><div class="kpi-sub">Écart-type : ${(postSd * 100).toFixed(2)} %</div></div>
-          <div class="kpi-box"><div class="kpi-label">Fréquentiste d / n</div><div class="kpi-value">${(freqPd * 100).toFixed(2)} %</div><div class="kpi-sub">${d} / ${n} (${s} sains)</div></div>
-          <div class="kpi-box"><div class="kpi-label">IC ${Math.round(b.credLevel * 100)} %</div><div class="kpi-value">${(ciLow * 100).toFixed(2)} % – ${(ciHigh * 100).toFixed(2)} %</div><div class="kpi-sub">Quantiles Bêta</div></div>
-          <div class="kpi-box"><div class="kpi-label">Mode posterior</div><div class="kpi-value">${postMode !== null ? `${(postMode * 100).toFixed(2)} %` : "Bord / plat"}</div><div class="kpi-sub">Max densité</div></div>
-        </div>
-        <h4 class="result-section-title">Poids : Prior ${wPriorPct.toFixed(1)} % vs Données ${wDataPct.toFixed(1)} %</h4>
-        <div class="weight-bar"><div class="weight-prior" style="width:${wPriorPct.toFixed(1)}%"></div><div class="weight-data" style="width:${wDataPct.toFixed(1)}%"></div></div>
-        ${d === 0 ? `<div class="warn-box"><strong>d = 0 :</strong> fréquentiste = 0,00 %, moyenne posterior = <strong>${(postMean * 100).toFixed(2)} %</strong>.</div>` : ""}
-        ${buildPosteriorChartSvg(alpha0, beta0, alphaN, betaN, freqPd, ciLow, ciHigh, b.credLevel)}
+        <div id="bayes-lab-dynamic">${renderBayesDynamicHtml(b, m)}</div>
       </div>
     `;
     bindBayesLabEvents();
@@ -986,67 +1051,180 @@
     const byCustomAlpha = document.getElementById("by-custom-alpha");
     const byCustomBeta = document.getElementById("by-custom-beta");
 
-    if (byN) byN.addEventListener("input", () => {
-      state.bayes.n = Math.max(1, parseInt(byN.value, 10) || 1);
-      if (state.bayes.d > state.bayes.n) state.bayes.d = state.bayes.n;
-      saveState();
-      renderBayesLab();
-    });
-    if (byD) byD.addEventListener("input", () => {
-      state.bayes.d = Math.min(state.bayes.n, Math.max(0, parseInt(byD.value, 10) || 0));
-      saveState();
-      renderBayesLab();
-    });
-    if (byPriorType) byPriorType.addEventListener("change", () => {
-      state.bayes.priorType = byPriorType.value;
-      saveState();
-      renderBayesLab();
-    });
-    if (byCred) byCred.addEventListener("change", () => {
-      state.bayes.credLevel = Number(byCred.value) === 0.9 ? 0.9 : 0.95;
-      saveState();
-      renderBayesLab();
-    });
-    if (byTargetPd) byTargetPd.addEventListener("input", () => {
-      state.bayes.targetPdPct = Math.min(99, Math.max(0.01, Number(byTargetPd.value) || 0.01));
-      saveState();
-      renderBayesLab();
-    });
-    if (byPriorWeight) byPriorWeight.addEventListener("input", () => {
-      state.bayes.priorWeight = Math.max(0.5, Number(byPriorWeight.value) || 0.5);
-      saveState();
-      renderBayesLab();
-    });
-    if (byCustomAlpha) byCustomAlpha.addEventListener("input", () => {
-      state.bayes.customAlpha = Math.max(0.05, Number(byCustomAlpha.value) || 0.05);
-      saveState();
-      renderBayesLab();
-    });
-    if (byCustomBeta) byCustomBeta.addEventListener("input", () => {
-      state.bayes.customBeta = Math.max(0.05, Number(byCustomBeta.value) || 0.05);
-      saveState();
-      renderBayesLab();
-    });
+    if (byN) {
+      byN.addEventListener("input", () => {
+        if (byN.value === "") return;
+        const parsed = parseInt(byN.value, 10);
+        if (!Number.isFinite(parsed) || parsed < 1) return;
+        state.bayes.n = parsed;
+        if (state.bayes.d > state.bayes.n) {
+          state.bayes.d = state.bayes.n;
+          if (byD) byD.value = String(state.bayes.d);
+        }
+        saveState();
+        updateBayesLabOutput();
+      });
+      byN.addEventListener("blur", () => {
+        const parsed = parseInt(byN.value, 10);
+        state.bayes.n = Number.isFinite(parsed) && parsed >= 1 ? parsed : 1;
+        byN.value = String(state.bayes.n);
+        if (state.bayes.d > state.bayes.n) {
+          state.bayes.d = state.bayes.n;
+          if (byD) byD.value = String(state.bayes.d);
+        }
+        saveState();
+        updateBayesLabOutput();
+      });
+    }
+
+    if (byD) {
+      byD.addEventListener("input", () => {
+        if (byD.value === "") return;
+        const parsed = parseInt(byD.value, 10);
+        if (!Number.isFinite(parsed) || parsed < 0) return;
+        state.bayes.d = Math.min(state.bayes.n, parsed);
+        saveState();
+        updateBayesLabOutput();
+      });
+      byD.addEventListener("blur", () => {
+        const parsed = parseInt(byD.value, 10);
+        state.bayes.d =
+          Number.isFinite(parsed) && parsed >= 0 ? Math.min(state.bayes.n, parsed) : 0;
+        byD.value = String(state.bayes.d);
+        saveState();
+        updateBayesLabOutput();
+      });
+    }
+
+    if (byPriorType) {
+      byPriorType.addEventListener("change", () => {
+        state.bayes.priorType = byPriorType.value;
+        saveState();
+        renderBayesLab();
+      });
+    }
+
+    if (byCred) {
+      byCred.addEventListener("change", () => {
+        state.bayes.credLevel = Number(byCred.value) === 0.9 ? 0.9 : 0.95;
+        saveState();
+        updateBayesLabOutput();
+      });
+    }
+
+    if (byTargetPd) {
+      byTargetPd.addEventListener("input", () => {
+        if (byTargetPd.value === "") return;
+        const val = Number(byTargetPd.value);
+        if (!Number.isFinite(val) || val <= 0) return;
+        state.bayes.targetPdPct = Math.min(99, Math.max(0.01, val));
+        saveState();
+        updateBayesLabOutput();
+      });
+      byTargetPd.addEventListener("blur", () => {
+        const val = Number(byTargetPd.value);
+        state.bayes.targetPdPct =
+          Number.isFinite(val) && val > 0 ? Math.min(99, Math.max(0.01, val)) : 1.5;
+        byTargetPd.value = String(state.bayes.targetPdPct);
+        saveState();
+        updateBayesLabOutput();
+      });
+    }
+
+    if (byPriorWeight) {
+      byPriorWeight.addEventListener("input", () => {
+        if (byPriorWeight.value === "") return;
+        const val = Number(byPriorWeight.value);
+        if (!Number.isFinite(val) || val <= 0) return;
+        state.bayes.priorWeight = Math.max(0.5, val);
+        saveState();
+        updateBayesLabOutput();
+      });
+      byPriorWeight.addEventListener("blur", () => {
+        const val = Number(byPriorWeight.value);
+        state.bayes.priorWeight = Number.isFinite(val) && val > 0 ? Math.max(0.5, val) : 40;
+        byPriorWeight.value = String(state.bayes.priorWeight);
+        saveState();
+        updateBayesLabOutput();
+      });
+    }
+
+    if (byCustomAlpha) {
+      byCustomAlpha.addEventListener("input", () => {
+        if (byCustomAlpha.value === "") return;
+        const val = Number(byCustomAlpha.value);
+        if (!Number.isFinite(val) || val <= 0) return;
+        state.bayes.customAlpha = Math.max(0.05, val);
+        saveState();
+        updateBayesLabOutput();
+      });
+      byCustomAlpha.addEventListener("blur", () => {
+        const val = Number(byCustomAlpha.value);
+        state.bayes.customAlpha = Number.isFinite(val) && val > 0 ? Math.max(0.05, val) : 1;
+        byCustomAlpha.value = String(state.bayes.customAlpha);
+        saveState();
+        updateBayesLabOutput();
+      });
+    }
+
+    if (byCustomBeta) {
+      byCustomBeta.addEventListener("input", () => {
+        if (byCustomBeta.value === "") return;
+        const val = Number(byCustomBeta.value);
+        if (!Number.isFinite(val) || val <= 0) return;
+        state.bayes.customBeta = Math.max(0.05, val);
+        saveState();
+        updateBayesLabOutput();
+      });
+      byCustomBeta.addEventListener("blur", () => {
+        const val = Number(byCustomBeta.value);
+        state.bayes.customBeta = Number.isFinite(val) && val > 0 ? Math.max(0.05, val) : 49;
+        byCustomBeta.value = String(state.bayes.customBeta);
+        saveState();
+        updateBayesLabOutput();
+      });
+    }
 
     const pZero = document.getElementById("by-preset-ldp-zero");
     const pSmall = document.getElementById("by-preset-small-n");
     const pLarge = document.getElementById("by-preset-large-n");
-    if (pZero) pZero.addEventListener("click", () => {
-      state.bayes = { ...state.bayes, n: 60, d: 0, priorType: "informative", targetPdPct: 1.5, priorWeight: 40 };
-      saveState();
-      renderBayesLab();
-    });
-    if (pSmall) pSmall.addEventListener("click", () => {
-      state.bayes = { ...state.bayes, n: 4, d: 2, priorType: "informative", targetPdPct: 2.0, priorWeight: 20 };
-      saveState();
-      renderBayesLab();
-    });
-    if (pLarge) pLarge.addEventListener("click", () => {
-      state.bayes = { ...state.bayes, n: 800, d: 12, priorType: "jeffreys" };
-      saveState();
-      renderBayesLab();
-    });
+    if (pZero) {
+      pZero.addEventListener("click", () => {
+        state.bayes = {
+          ...state.bayes,
+          n: 60,
+          d: 0,
+          priorType: "informative",
+          targetPdPct: 1.5,
+          priorWeight: 40
+        };
+        saveState();
+        renderBayesLab();
+      });
+    }
+    if (pSmall) {
+      pSmall.addEventListener("click", () => {
+        state.bayes = {
+          ...state.bayes,
+          n: 4,
+          d: 2,
+          priorType: "informative",
+          targetPdPct: 2.0,
+          priorWeight: 20
+        };
+        saveState();
+        renderBayesLab();
+      });
+    }
+    if (pLarge) {
+      pLarge.addEventListener("click", () => {
+        state.bayes = { ...state.bayes, n: 800, d: 12, priorType: "jeffreys" };
+        saveState();
+        renderBayesLab();
+      });
+    }
   }
+
 
   function setView(viewName) {
     state.view = viewName;
