@@ -21,15 +21,6 @@
       customAlpha: 1,
       customBeta: 49,
       credLevel: 0.95,
-      m2ClassesCount: 5,
-      m2Scope: "all",
-      m2Classes: [
-        { name: "R1", n: 40, d: 0 },
-        { name: "R2", n: 35, d: 0 },
-        { name: "R3", n: 30, d: 1 },
-        { name: "R4", n: 20, d: 1 },
-        { name: "R5", n: 10, d: 2 }
-      ],
     }
   };
 
@@ -1050,42 +1041,6 @@
         <h3>2. Posterior &amp; comparaison</h3>
         <div id="bayes-lab-dynamic">${renderBayesDynamicHtml(b, m)}</div>
       </div>
-                <div class="card" id="bayes-mode2-card">
-            <h2>Mode 2 — Échelle de notation multi-classes (3–10 classes)</h2>
-            <p class="helper-text">
-              <strong>Question posée :</strong> comment estimer la PD par classe de notation (R1…Rk) en conjuguant les observations (<em>n<sub>i</sub></em>, <em>d<sub>i</sub></em>) avec un <em>prior</em> Bêta(α<sub>0</sub>, β<sub>0</sub>) sans agréger globalement ni corriger artificiellement les inversions de monotonie ?
-            </p>
-            <div class="form-grid">
-              <label class="field">
-                <span>Nombre de classes (3–10)</span>
-                <input id="m2-classes-count" type="number" min="3" max="10" value="${b.m2ClassesCount}" />
-              </label>
-              <label class="field">
-                <span>Périmètre bayésien</span>
-                <select id="m2-scope">
-                  <option value="all" ${b.m2Scope === "all" ? "selected" : ""}>Toutes les classes</option>
-                  <option value="zero_only" ${b.m2Scope === "zero_only" ? "selected" : ""}>0 défaut uniquement</option>
-                </select>
-              </label>
-              <label class="field">
-                <span>Type de prior (commun)</span>
-                <select id="m2-prior-type">
-                  <option value="informative" ${b.priorType === "informative" ? "selected" : ""}>Informatif (PD cible + poids n₀)</option>
-                  <option value="custom" ${b.priorType === "custom" ? "selected" : ""}>Personnalisé (α₀, β₀)</option>
-                  <option value="uniform" ${b.priorType === "uniform" ? "selected" : ""}>Uniforme Bêta(1, 1)</option>
-                  <option value="jeffreys" ${b.priorType === "jeffreys" ? "selected" : ""}>Jeffreys Bêta(0,5, 0,5)</option>
-                </select>
-              </label>
-              <label class="field">
-                <span>Poids du prior n₀ (pseudo-données)</span>
-                <input id="m2-prior-weight" type="number" min="0" step="1" value="${b.priorWeight}" />
-              </label>
-            </div>
-            <p class="helper-text">
-              Prior actif utilisé par classe : <strong>Bêta(${Number(m.alpha0).toFixed(2)}, ${Number(m.beta0).toFixed(2)})</strong> · poids <strong>n<sub>0</sub> = ${Number(m.alpha0 + m.beta0).toFixed(2)}</strong>.
-            </p>
-            <div id="bayes-m2-body">${renderBayesMode2Html(b, m)}</div>
-          </div>
     `;
     bindBayesLabEvents();
   }
@@ -1272,149 +1227,7 @@
         renderBayesLab();
       });
     }
-      const m2PriorTypeEl = document.getElementById("m2-prior-type");
-      const m2PriorWeightEl = document.getElementById("m2-prior-weight");
-      if (m2PriorTypeEl) {
-        m2PriorTypeEl.addEventListener("change", () => {
-          state.bayes.priorType = m2PriorTypeEl.value;
-          saveState();
-          renderBayesLab();
-        });
-      }
-      if (m2PriorWeightEl) {
-        m2PriorWeightEl.addEventListener("change", () => {
-          const w = Math.max(0, parseFloat(m2PriorWeightEl.value) || 0);
-          state.bayes.priorWeight = w;
-          saveState();
-          renderBayesLab();
-        });
-      }
-
-        const m2CountEl = document.getElementById("m2-classes-count");
-      const m2ScopeEl = document.getElementById("m2-scope");
-      if (m2CountEl) {
-        m2CountEl.addEventListener("change", () => {
-          const count = Math.min(10, Math.max(3, parseInt(m2CountEl.value, 10) || 5));
-          state.bayes.m2ClassesCount = count;
-          const next = [];
-          for (let i = 0; i < count; i++) {
-            next.push(
-              state.bayes.m2Classes[i] || {
-                name: `R${i + 1}`,
-                n: Math.max(5, 40 - i * 4),
-                d: i < 2 ? 0 : Math.floor((i - 1) / 2)
-              }
-            );
-          }
-          state.bayes.m2Classes = next;
-          saveState();
-          renderBayesLab();
-        });
-      }
-      if (m2ScopeEl) {
-        m2ScopeEl.addEventListener("change", () => {
-          state.bayes.m2Scope = m2ScopeEl.value === "zero_only" ? "zero_only" : "all";
-          saveState();
-          renderBayesLab();
-        });
-      }
-      document.querySelectorAll("[data-m2-n]").forEach((inp) => {
-        inp.addEventListener("change", () => {
-          const idx = parseInt(inp.dataset.m2N, 10);
-          if (!state.bayes.m2Classes[idx]) return;
-          const val = Math.max(1, parseInt(inp.value, 10) || 1);
-          state.bayes.m2Classes[idx].n = val;
-          if (state.bayes.m2Classes[idx].d > val) {
-            state.bayes.m2Classes[idx].d = val;
-          }
-          saveState();
-          renderBayesLab();
-        });
-      });
-      document.querySelectorAll("[data-m2-d]").forEach((inp) => {
-        inp.addEventListener("change", () => {
-          const idx = parseInt(inp.dataset.m2D, 10);
-          if (!state.bayes.m2Classes[idx]) return;
-          const maxD = state.bayes.m2Classes[idx].n;
-          const val = Math.min(maxD, Math.max(0, parseInt(inp.value, 10) || 0));
-          state.bayes.m2Classes[idx].d = val;
-          saveState();
-          renderBayesLab();
-        });
-      });
   }
-
-        function renderBayesMode2Html(b, m) {
-      const count = Math.min(10, Math.max(3, parseInt(b.m2ClassesCount, 10) || 5));
-      const scope = b.m2Scope === "zero_only" ? "zero_only" : "all";
-      const rows = [];
-      for (let i = 0; i < count; i++) {
-        const item = b.m2Classes[i] || { name: `R${i + 1}`, n: 20, d: 0 };
-        const n = Math.max(1, parseInt(item.n, 10) || 1);
-        const d = Math.min(n, Math.max(0, parseInt(item.d, 10) || 0));
-        const isZero = d === 0;
-        const activeBayes = scope === "all" || isZero;
-        const alphaPost = activeBayes ? m.alpha0 + d : null;
-        const betaPost = activeBayes ? m.beta0 + (n - d) : null;
-        const pdPost = activeBayes ? alphaPost / (alphaPost + betaPost) : d / n;
-        rows.push({
-          idx: i,
-          name: item.name || `R${i + 1}`,
-          n,
-          d,
-          isZero,
-          activeBayes,
-          pdObs: d / n,
-          pdPost
-        });
-      }
-
-      const inversions = [];
-      for (let i = 1; i < rows.length; i++) {
-        if (rows[i].pdPost < rows[i - 1].pdPost) {
-          inversions.push(
-            `${rows[i - 1].name} (${(rows[i - 1].pdPost * 100).toFixed(2)}%) > ${rows[i].name} (${(rows[i].pdPost * 100).toFixed(2)}%)`
-          );
-        }
-      }
-
-      const diagHtml = inversions.length
-        ? `<p class="helper-text"><strong>Monotonie :</strong> inversion (${inversions.join(" ; ")}). Aucune correction auto.</p>`
-        : `<p class="helper-text"><strong>Monotonie :</strong> OK (pas d’inversion sur R1–R${count}).</p>`;
-
-      const bodyRows = rows
-        .map(
-          (r) => `
-          <tr>
-            <td style="white-space:nowrap;"><strong>${r.name}</strong></td>
-            <td><input type="number" min="1" value="${r.n}" data-m2-n="${r.idx}" style="width:62px;padding:4px 6px;" /></td>
-            <td><input type="number" min="0" max="${r.n}" value="${r.d}" data-m2-d="${r.idx}" style="width:52px;padding:4px 6px;" /></td>
-            <td style="white-space:nowrap;">${r.activeBayes ? "Bayésien" : "Hors scope"}</td>
-            <td style="white-space:nowrap;">${(r.pdObs * 100).toFixed(2)}%</td>
-            <td style="white-space:nowrap;"><strong>${(r.pdPost * 100).toFixed(2)}%</strong></td>
-          </tr>`
-        )
-        .join("");
-
-      return `
-        ${diagHtml}
-        <div style="overflow-x:auto;-webkit-overflow-scrolling:touch;max-width:100%;">
-          <table style="width:100%;border-collapse:collapse;font-size:0.88rem;">
-            <thead>
-              <tr>
-                <th style="text-align:left;padding:6px 4px;">Cl.</th>
-                <th style="text-align:left;padding:6px 4px;">n</th>
-                <th style="text-align:left;padding:6px 4px;">d</th>
-                <th style="text-align:left;padding:6px 4px;">Scope</th>
-                <th style="text-align:right;padding:6px 4px;">PD obs</th>
-                <th style="text-align:right;padding:6px 4px;">PD post</th>
-              </tr>
-            </thead>
-            <tbody>${bodyRows}</tbody>
-          </table>
-        </div>`;
-    }
-
 
   function setView(viewName) {
     state.view = viewName;
