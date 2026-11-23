@@ -408,3 +408,19 @@ table.mk-table input.cell-error {
   color: var(--text);
   overflow-x: auto;
 }
+.formula-callout {
+  font-family: Georgia, "Times New Roman", serif;
+  font-weight: 400;
+  font-size: 0.98rem;
+  letter-spacing: 0.01em;
+}
+.formula-callout strong {
+  font-weight: 400;
+}
+
+.prop-sign {
+  font-size: 1.25em;
+  font-weight: 600;
+  padding: 0 0.2rem;
+  color: #38bdf8;
+}
