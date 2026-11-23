@@ -387,12 +387,7 @@
     }
 
     Q[n - 1] = Array(n).fill(0);
-    const convergenceIssues = converged
-      ? []
-      : [
-          "La série du logarithme matriciel log(P) ne converge pas (certaines valeurs propres de P sont trop éloignées de 1 ; la génératrice candidate n’a pas pu être calculée)."
-        ];
-    return { Q, convergenceIssues, converged };
+    return { Q, converged };
   }
 
   function diagnoseGenerator(Q) {
@@ -403,25 +398,16 @@
       for (let j = 0; j < n; j++) {
         const v = Q[i][j];
         if (!Number.isFinite(v)) {
-          issues.push(`Ligne ${i + 1} (${stateLabel(i, n)}) : valeur non finie dans le générateur.`);
+          issues.push("valeur non finie");
           continue;
         }
         sum += v;
-        if (i !== j && v < -1e-7) {
-          issues.push(
-            `Ligne ${i + 1} (${stateLabel(i, n)}), colonne ${stateLabel(j, n)} : intensité hors diagonale négative (${v.toFixed(4)}).`
-          );
-        }
-        if (i === j && v > 1e-7) {
-          issues.push(`Ligne ${i + 1} (${stateLabel(i, n)}) : terme diagonal positif (${v.toFixed(4)}).`);
-        }
+        if (i !== j && v < -1e-7) issues.push("intensité hors diagonale négative");
+        if (i === j && v > 1e-7) issues.push("terme diagonal positif");
       }
       if (Number.isFinite(sum)) {
-        if (i === n - 1 && Math.abs(sum) > 1e-6) {
-          issues.push("La ligne du défaut absorbant doit être nulle.");
-        } else if (Math.abs(sum) > 1e-4) {
-          issues.push(`Ligne ${i + 1} (${stateLabel(i, n)}) : somme des intensités = ${sum.toFixed(4)} ≠ 0.`);
-        }
+        if (i === n - 1 && Math.abs(sum) > 1e-6) issues.push("ligne défaut non nulle");
+        else if (Math.abs(sum) > 1e-4) issues.push("somme de ligne non nulle");
       }
     }
     return issues;
@@ -685,9 +671,9 @@
 
     let jltDiagnosticHtml =
       issuesJlt.length > 0
-        ? `<div class="error-box">${issuesJlt.join(" ")}</div>`
+        ? `<div class="error-box">Générateur JLT invalide.</div>`
         : jltDefaultGaps.length > 0
-        ? `<div class="warn-box"><strong>Écart (&gt; 1 pt) avec JLT :</strong><ul>${jltDefaultGaps.map((g) => `<li>${g}</li>`).join("")}</ul></div>`
+        ? `<div class="warn-box"><strong>Écart (&gt; 1 pt) avec JLT (indicateur de non-embeddability ou d’approximation) :</strong><ul>${jltDefaultGaps.map((g) => `<li>${g}</li>`).join("")}</ul></div>`
         : `<p class="helper-text">Diagnostic JLT : générateur valide ; sur un pas unitaire, les PD issues de <em>exp(Q<sub>JLT</sub>)</em> restent cohérentes avec <em>P</em>.</p>`;
 
     if (jltZeroObservedNotes.length > 0) {
@@ -696,7 +682,11 @@
 
     const irwSection = irwValid
       ? `${formatMatrixTable(`Générateur Q<sub>IRW</sub> — Estimateur IRW`, irw.Q, false)}${formatMatrixTable(`Modèle continu (IRW) : exp(${k} · Q<sub>IRW</sub>)`, expQ_irw, true)}`
-      : `<h4 class="result-section-title">Modèle continu (IRW)</h4><div class="error-box"><strong>Calcul IRW bloqué :</strong><ul>${(irw.converged ? generatorIssuesIrw : irw.convergenceIssues).map((m) => `<li>${m}</li>`).join("")}</ul></div>`;
+      : `<h4 class="result-section-title">Modèle continu (IRW)</h4><div class="error-box"><strong>Calcul IRW bloqué :</strong> ${
+          !irw.converged
+            ? "la série du logarithme matriciel log(P) ne converge pas (échec de l’estimateur IRW sur cette matrice)."
+            : "la matrice candidate log(P) présente des intensités hors diagonale négatives (échec de l’estimateur IRW : la matrice obtenue n’est pas un générateur markovien valide)."
+        }</div>`;
 
     els.mkResultsContent.innerHTML = `
       <h2>Résultats — Horizon k = ${k} ${unitLabel}</h2>
@@ -733,8 +723,8 @@
       return `<path d="${pts.join(" ")}" fill="none" stroke="${c.color}" stroke-width="2.2" />`;
     }).join("");
 
-    const legend = curves.map((c, idx) =>
-      `<span style="display:inline-flex;align-items:center;gap:0.3rem;margin-right:0.75rem;font-size:0.76rem;color:#cbd5e1;" key="${idx}"><span style="width:10px;height:10px;border-radius:999px;background:${c.color};display:inline-block;"></span>${c.label}</span>`
+    const legend = curves.map((c) =>
+      `<span style="display:inline-flex;align-items:center;gap:0.3rem;margin-right:0.75rem;font-size:0.76rem;color:#cbd5e1;"><span style="width:10px;height:10px;border-radius:999px;background:${c.color};display:inline-block;"></span>${c.label}</span>`
     ).join("");
 
     return `
@@ -757,20 +747,105 @@
       els.mkTheoryContent.innerHTML = `
         <h2>Théorie — Chaînes de Markov &amp; Risque de Crédit</h2>
         <div class="theory-block"><h3>1. États &amp; défaut absorbant</h3><p>Chaque ligne correspond à un état initial (rating ou défaut) ; les probabilités sont ≥ 0 et somment à 1 (ou 100 %). Le dernier état est absorbant.</p></div>
-        <div class="theory-block"><h3>2. Temps discret vs temps continu</h3><p>En discret, seules les puissances entières <em>P<sup>k</sup></em> ont un sens markovien direct. En continu, <strong>P(k) = exp(k · Q)</strong> permet tout horizon <em>k &gt; 0</em> et génère des PD indirectes même avec 0 défaut observé.</p></div>
-        <div class="theory-block"><h3>3. Embeddability</h3><p>Une matrice <em>P</em> est <em>embeddable</em> s’il existe un générateur markovien valide <em>Q</em> tel que <strong>P = exp(Q)</strong>.</p></div>
-        <div class="theory-block"><h3>4. JLT &amp; IRW</h3><p><strong>JLT</strong> construit <em>Q<sub>JLT</sub></em> directement à partir des transitions hors diagonale ; <strong>IRW</strong> utilise <em>log(P)</em> et se bloque si la série ne converge pas ou si le générateur obtenu n’est pas valide.</p></div>
+        <div class="theory-block"><h3>2. Temps discret vs temps continu</h3><p>En discret, seules les puissances entières <em>P<sup>k</sup></em> ont un sens markovien direct. En continu, <em>P(k) = exp(k · Q)</em> permet tout horizon <em>k &gt; 0</em> et génère des PD indirectes même avec 0 défaut observé.</p></div>
+        <div class="theory-block"><h3>3. Embeddability</h3><p>Une matrice <em>P</em> est <em>embeddable</em> s’il existe un générateur markovien valide <em>Q</em> tel que <em>P = exp(Q)</em> exactement.</p></div>
+        <div class="theory-block"><h3>4. JLT &amp; IRW</h3><p><strong>JLT</strong> construit <em>Q<sub>JLT</sub></em> directement à partir des transitions hors diagonale ; <strong>IRW</strong> utilise <em>log(P)</em>. Un blocage d’IRW traduit d’abord un échec de cet estimateur sur la matrice (non-convergence de la série ou intensités hors diagonale négatives), sans impliquer à lui seul une non-embeddability absolue.</p></div>
       `;
     }
 
     if (els.bayesTheoryContent) {
       els.bayesTheoryContent.innerHTML = `
         <h2>Bayes &amp; Conjugaison — Fondements pour la PD</h2>
-        <div class="theory-block"><h3>1. Fréquentiste vs Bayésien</h3><p>En fréquentiste, <em>p</em> est fixe et inconnu ; l’estimateur <em>p̂ = d / n</em> varie d’un échantillon à l’autre. En bayésien, <em>p</em> est traité comme une variable aléatoire sur [0, 1] avec sa propre distribution.</p></div>
-        <div class="theory-block"><h3>2. Formule de Bayes &amp; conjugaison</h3><div class="formula-callout"><strong>π(p | d, n) ∝ L(d, n | p) · π(p)</strong></div><p>Le <em>prior</em> <strong>Bêta(α<sub>0</sub>, β<sub>0</sub>)</strong> combiné à la vraisemblance <em>p<sup>d</sup>(1 − p)<sup>n − d</sup></em> donne directement un <em>posterior</em> <strong>Bêta(α<sub>0</sub> + d, β<sub>0</sub> + n − d)</strong> : c’est la propriété de conjugaison.</p></div>
-        <div class="theory-block"><h3>3. Pourquoi la loi Bêta ?</h3><div class="formula-callout"><strong>f(p ; α, β) = [ 1 / B(α, β) ] · p<sup>α − 1</sup> · (1 − p)<sup>β − 1</sup></strong></div><p>Elle vit sur [0, 1], gère l’asymétrie près de 0 % et reste conjuguée au modèle Bernoulli/Binomial.</p></div>
-        <div class="theory-block"><h3>4. Poids du prior vs données &amp; formes Bêta</h3><div class="formula-callout"><strong>E[p | d, n] = [ (α<sub>0</sub> + β<sub>0</sub>) / (α<sub>0</sub> + β<sub>0</sub> + n) ] · μ<sub>0</sub> + [ n / (α<sub>0</sub> + β<sub>0</sub> + n) ] · (d / n)</strong></div><p>Le poids du prior vaut <em>n<sub>0</sub> = α<sub>0</sub> + β<sub>0</sub></em> face aux <em>n</em> observations réelles.</p>${buildBetaShapesSvg()}</div>
-        <div class="theory-block"><h3>5. LDP (Mode 1)</h3><p>Quand <em>d = 0</em> ou <em>n</em> est petit, le fréquentiste peut afficher 0 % ou sauter fortement ; le bayésien ancre la PD autour du prior choisi (tout en restant sensible à ce choix quand <em>n</em> est faible).</p></div>
+
+        <div class="theory-block">
+          <h3>1. Fréquentiste vs Bayésien : statut de <em>p</em> et avantages de Bayes</h3>
+          <p>
+            En approche <strong>fréquentiste</strong>, la probabilité de défaut <em>p</em> est un paramètre fixe et inconnu : ce n’est pas une variable aléatoire. L’aléa provient uniquement de l’échantillon observé, ce qui rend l’estimateur empirique <em>p̂ = d / n</em> variable d’un échantillon à l’autre.
+          </p>
+          <p>
+            En approche <strong>bayésienne</strong>, les données observées (<em>d</em> défauts sur <em>n</em> expositions) sont prises telles quelles, et c’est le paramètre <em>p</em> lui-même qui est modélisé comme une <strong>variable aléatoire</strong> dotée d’une distribution de probabilité.
+          </p>
+          <p>
+            <strong>Quand l’approche bayésienne présente-t-elle un avantage décisif ?</strong>
+          </p>
+          <ul>
+            <li><strong>Échantillons petits ou portefeuilles à faible défaut (LDP) :</strong> évite les estimations extrêmes (comme 0 % de PD lorsque <em>d = 0</em>) en s’appuyant sur une information a priori structurée.</li>
+            <li><strong>Intégration d’une expertise ou d’un benchmark :</strong> permet de combiner formellement une croyance métier (historique long, notation externe, dires d’experts) avec les données internes récentes.</li>
+            <li><strong>Mesure directe de l’incertitude :</strong> fournit une distribution complète de <em>p</em> (et donc un intervalle de crédibilité exact), là où l’approximation normale fréquentiste devient fragile près de 0 %.</li>
+          </ul>
+        </div>
+
+        <div class="theory-block">
+          <h3>2. Formule de Bayes, conjugaison et vision globale du résultat</h3>
+          <div class="formula-callout">
+            π(p | d, n) <span class="prop-sign">∝</span> L(d, n | p) · π(p)
+          </div>
+          <p>
+            Chaque composante de cette relation a un sens précis :
+          </p>
+          <ul>
+            <li><strong>π(p) — le <em>prior</em> (loi a priori) :</strong> représente notre croyance initiale sur les valeurs plausibles de la PD <em>p</em> avant d’observer les nouvelles données.</li>
+            <li><strong>L(d, n | p) — la <em>vraisemblance</em> :</strong> représente la probabilité d’observer les données (<em>d</em> défauts sur <em>n</em> expositions) sachant une valeur donnée de <em>p</em>. Pour des tirages indépendants de même PD <em>p</em>, elle est proportionnelle à <em>p<sup>d</sup> (1 − p)<sup>n − d</sup></em>.</li>
+            <li><strong>π(p | d, n) — le <em>posterior</em> (loi a posteriori) :</strong> représente la distribution mise à jour de <em>p</em> après avoir combiné le <em>prior</em> et les données observées via le signe de proportionnalité (<span class="prop-sign">∝</span>).</li>
+          </ul>
+          <p>
+            <strong>Pourquoi parle-t-on de conjugaison ?</strong> Lorsque le <em>prior</em> suit une loi <strong>Bêta(α<sub>0</sub>, β<sub>0</sub>)</strong> et que les données suivent un schéma Bernoulli/Binomial, le produit <em>L(d, n | p) · π(p)</em> redonne exactement une loi de la <strong>même famille Bêta</strong> : <strong>Bêta(α<sub>0</sub> + d, β<sub>0</sub> + n − d)</strong>.
+          </p>
+          <p>
+            <strong>Quel est le résultat final retenu ?</strong> Le modèle ne donne pas seulement un chiffre isolé, mais toute la distribution <em>posterior</em> de la PD <em>p</em>. Pour le pilotage du risque, on en extrait principalement la <strong>moyenne posterior</strong> <em>E[p | d, n]</em> comme estimation centrale de la PD, accompagnée d’un <strong>intervalle de crédibilité</strong> (à 90 % ou 95 %) qui encadre l’incertitude autour de cette PD.
+          </p>
+        </div>
+
+        <div class="theory-block">
+          <h3>3. Pourquoi une loi Bêta pour modéliser la PD <em>p</em> ?</h3>
+          <p>
+            Une probabilité de défaut <em>p</em> est par nature une proportion comprise entre 0 % et 100 % : elle ne peut ni être négative, ni dépasser 1. Une loi Normale (définie de −∞ à +∞) est inadaptée car elle déborderait sous 0 % pour des PD faibles et imposerait une symétrie artificielle près des bords.
+          </p>
+          <p>
+            Dans le cadre d’une expérience de Bernoulli répétée (ou Binomiale) où l’on observe des défauts avec une probabilité <em>p</em>, la loi <strong>Bêta</strong> modélise précisément les variations possibles de ce paramètre <em>p</em> sur l’intervalle [0, 1]. Sa densité s’écrit :
+          </p>
+          <div class="formula-callout">
+            f(p ; α, β) = [ 1 / B(α, β) ] · p<sup>α − 1</sup> · (1 − p)<sup>β − 1</sup> &nbsp;&nbsp; pour p ∈ [0, 1]
+          </div>
+          <p>
+            Elle reste strictement bornée entre 0 et 1, épouse l’asymétrie des faibles taux de défaut et assure la conjugaison algébrique.
+          </p>
+        </div>
+
+        <div class="theory-block">
+          <h3>4. Pseudo-données, poids du prior et choix de la croyance initiale</h3>
+          <p>
+            Dans la mise à jour <strong>Bêta(α<sub>0</sub> + d, β<sub>0</sub> + n − d)</strong>, les paramètres initiaux <strong>(α<sub>0</sub>, β<sub>0</sub>)</strong> s’interprètent directement comme des <strong>pseudo-données</strong> (un portefeuille fictif de départ composé de <em>α<sub>0</sub></em> défauts virtuels et <em>β<sub>0</sub></em> contreparties saines virtuelles), que l’on additionne aux <strong>données réelles</strong> observées (<em>d</em> défauts effectifs et <em>n − d</em> sains effectifs).
+          </p>
+          <p>
+            <strong>Quel est l’intérêt de ces pseudo-données et que représente le poids ?</strong> Elles permettent de quantifier la force de notre croyance initiale. La somme <strong>n<sub>0</sub> = α<sub>0</sub> + β<sub>0</sub></strong> constitue le <strong>poids du prior</strong> : elle pondère la PD a priori <em>μ<sub>0</sub> = α<sub>0</sub> / (α<sub>0</sub> + β<sub>0</sub>)</em> face au taux empirique réel <em>d / n</em> pondéré par la taille d’échantillon <em>n</em> :
+          </p>
+          <div class="formula-callout">
+            E[p | d, n] = [ n<sub>0</sub> / (n<sub>0</sub> + n) ] · μ<sub>0</sub> + [ n / (n<sub>0</sub> + n) ] · (d / n)
+          </div>
+          <p>
+            Chaque famille de <em>prior</em> traduit ainsi une croyance différente et un poids spécifique :
+          </p>
+          <ul>
+            <li><strong>Uniforme Bêta(1, 1) :</strong> traduit l’absence de préférence entre les valeurs de <em>p</em> sur [0, 1] (toutes les PD de 0 % à 100 % sont jugées équiprobables avant observation), avec un poids faible <em>n<sub>0</sub> = 2</em> et une moyenne a priori de 50 % (peu réaliste en crédit si <em>n</em> est petit).</li>
+            <li><strong>Jeffreys Bêta(0.5, 0.5) :</strong> prior non informatif de référence, très léger (<em>n<sub>0</sub> = 1</em>), qui laisse rapidement parler les données dès que <em>n</em> augmente.</li>
+            <li><strong>Informatif Bêta(α<sub>0</sub>, β<sub>0</sub>) :</strong> traduit une croyance métier ciblée (par exemple une PD benchmark <em>μ<sub>0</sub> = 1,5 %</em>) avec un poids <em>n<sub>0</sub></em> choisi selon la confiance accordée à cette référence.</li>
+          </ul>
+          <p>
+            <strong>Règle de gouvernance et effet sur le résultat :</strong> le choix du <em>prior</em> doit toujours reposer sur une justification explicite (dire d’expert, benchmark sectoriel, historique externe). Lorsque l’échantillon réel <em>n</em> est petit, ce choix influence directement la PD <em>posterior</em> ; à l’inverse, lorsque <em>n</em> devient grand, le poids des données <em>n / (n<sub>0</sub> + n)</em> tend vers 1 et l’influence du <em>prior</em> s’efface au profit des observations réelles.
+          </p>
+          ${buildBetaShapesSvg()}
+        </div>
+
+        <div class="theory-block">
+          <h3>5. Application au Mode 1 : portefeuille à faible défaut (LDP)</h3>
+          <p>
+            Sur un portefeuille <strong>LDP</strong> ou un petit échantillon, l’estimateur fréquentiste <em>d / n</em> est discontinu et instable : sur <em>n = 4</em> expositions par exemple, 0 défaut donne 0 %, 1 défaut fait bondir la PD à 25 %, et 2 défauts à 50 %. Sur un segment avec 0 défaut (<em>d = 0</em>), il affiche 0,00 %, ce qui est difficilement défendable en gestion des risques.
+          </p>
+          <p>
+            L’approche bayésienne régularise cette estimation : tant que le volume d’observations <em>n</em> reste limité, le <em>prior</em> stabilise la PD estimée autour de la croyance initiale <em>μ<sub>0</sub></em> au lieu de la laisser tomber à 0 % ou bondir brutalement, tout en rendant transparente la sensibilité du résultat au poids <em>n<sub>0</sub></em> choisi.
+          </p>
+        </div>
       `;
     }
   }
@@ -899,7 +974,7 @@
       </div>
       <div class="card">
         <h3>2. Posterior &amp; comparaison</h3>
-        <div class="formula-callout"><strong>Posterior : Bêta(${alphaN.toFixed(2)}, ${betaN.toFixed(2)})</strong></div>
+        <div class="formula-callout">Posterior : Bêta(${alphaN.toFixed(2)}, ${betaN.toFixed(2)})</div>
         <div class="bayes-kpi-grid">
           <div class="kpi-box"><div class="kpi-label">Moyenne posterior</div><div class="kpi-value">${(postMean * 100).toFixed(2)} %</div><div class="kpi-sub">Écart-type : ${(postSd * 100).toFixed(2)} %</div></div>
           <div class="kpi-box"><div class="kpi-label">Fréquentiste d / n</div><div class="kpi-value">${(freqPd * 100).toFixed(2)} %</div><div class="kpi-sub">${d} / ${n} (${s} sains)</div></div>
@@ -1151,4 +1226,4 @@
   } else {
     init();
   }
-})();
+})(); 
