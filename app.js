@@ -507,6 +507,7 @@
     }
     return 0.5 * (lo + hi);
   }
+
   function syncValidationVisuals() {
     if (!els.mkValidationPill || !els.mkErrorsBox || !els.mkMatrixWrapper) return;
     const n = state.nStates;
@@ -765,9 +766,6 @@
           <p>
             En approche <strong>bayésienne</strong>, les données observées (<em>d</em> défauts sur <em>n</em> expositions) sont prises telles quelles, et c’est le paramètre <em>p</em> lui-même qui est modélisé comme une <strong>variable aléatoire</strong> dotée d’une distribution de probabilité.
           </p>
-          <p>
-            <strong>Quand l’approche bayésienne présente-t-elle un avantage décisif ?</strong>
-          </p>
           <ul>
             <li><strong>Échantillons petits ou portefeuilles à faible défaut (LDP) :</strong> évite les estimations extrêmes (comme 0 % de PD lorsque <em>d = 0</em>) en s’appuyant sur une information a priori structurée.</li>
             <li><strong>Intégration d’une expertise ou d’un benchmark :</strong> permet de combiner formellement une croyance métier (historique long, notation externe, dires d’experts) avec les données internes récentes.</li>
@@ -780,70 +778,58 @@
           <div class="formula-callout">
             π(p | d, n) <span class="prop-sign">∝</span> L(d, n | p) · π(p)
           </div>
-          <p>
-            Chaque composante de cette relation a un sens précis :
-          </p>
           <ul>
             <li><strong>π(p) — le <em>prior</em> (loi a priori) :</strong> représente notre croyance initiale sur les valeurs plausibles de la PD <em>p</em> avant d’observer les nouvelles données.</li>
             <li><strong>L(d, n | p) — la <em>vraisemblance</em> :</strong> représente la probabilité d’observer les données (<em>d</em> défauts sur <em>n</em> expositions) sachant une valeur donnée de <em>p</em>. Pour des tirages indépendants de même PD <em>p</em>, elle est proportionnelle à <em>p<sup>d</sup> (1 − p)<sup>n − d</sup></em>.</li>
             <li><strong>π(p | d, n) — le <em>posterior</em> (loi a posteriori) :</strong> représente la distribution mise à jour de <em>p</em> après avoir combiné le <em>prior</em> et les données observées via le signe de proportionnalité (<span class="prop-sign">∝</span>).</li>
           </ul>
           <p>
-            <strong>Pourquoi parle-t-on de conjugaison ?</strong> Lorsque le <em>prior</em> suit une loi <strong>Bêta(α<sub>0</sub>, β<sub>0</sub>)</strong> et que les données suivent un schéma Bernoulli/Binomial, le produit <em>L(d, n | p) · π(p)</em> redonne exactement une loi de la <strong>même famille Bêta</strong> : <strong>Bêta(α<sub>0</sub> + d, β<sub>0</sub> + n − d)</strong>.
+            <strong>Conjugaison :</strong> lorsque le <em>prior</em> suit une loi <strong>Bêta(α<sub>0</sub>, β<sub>0</sub>)</strong> et que les données suivent un schéma Bernoulli/Binomial, la loi <em>posterior</em> reste dans la même famille Bêta : <strong>Bêta(α<sub>0</sub> + d, β<sub>0</sub> + n − d)</strong>.
           </p>
           <p>
-            <strong>Quel est le résultat final retenu ?</strong> Le modèle ne donne pas seulement un chiffre isolé, mais toute la distribution <em>posterior</em> de la PD <em>p</em>. Pour le pilotage du risque, on en extrait principalement la <strong>moyenne posterior</strong> <em>E[p | d, n]</em> comme estimation centrale de la PD, accompagnée d’un <strong>intervalle de crédibilité</strong> (à 90 % ou 95 %) qui encadre l’incertitude autour de cette PD.
+            <strong>Résultat final :</strong> le modèle produit la loi <em>posterior</em> complète de <em>p</em>. On en extrait la <strong>moyenne posterior</strong> <em>E[p | d, n]</em> comme estimation centrale de la PD, et un <strong>intervalle de crédibilité</strong> (90 % ou 95 %) pour encadrer l’incertitude.
           </p>
         </div>
 
         <div class="theory-block">
           <h3>3. Pourquoi une loi Bêta pour modéliser la PD <em>p</em> ?</h3>
           <p>
-            Une probabilité de défaut <em>p</em> est par nature une proportion comprise entre 0 % et 100 % : elle ne peut ni être négative, ni dépasser 1. Une loi Normale (définie de −∞ à +∞) est inadaptée car elle déborderait sous 0 % pour des PD faibles et imposerait une symétrie artificielle près des bords.
+            Une probabilité de défaut <em>p</em> est une proportion comprise entre 0 % et 100 % : elle ne peut ni être négative, ni dépasser 1. Une loi Normale (sur −∞ à +∞) est inadaptée car elle déborderait sous 0 % pour des PD faibles et imposerait une symétrie artificielle près des bords.
           </p>
           <p>
-            Dans le cadre d’une expérience de Bernoulli répétée (ou Binomiale) où l’on observe des défauts avec une probabilité <em>p</em>, la loi <strong>Bêta</strong> modélise précisément les variations possibles de ce paramètre <em>p</em> sur l’intervalle [0, 1]. Sa densité s’écrit :
+            Dans le cadre d’une expérience de Bernoulli répétée (ou Binomiale) où l’on observe des défauts avec une probabilité <em>p</em>, la loi <strong>Bêta</strong> modélise les variations possibles de ce paramètre <em>p</em> sur l’intervalle [0, 1] :
           </p>
           <div class="formula-callout">
             f(p ; α, β) = [ 1 / B(α, β) ] · p<sup>α − 1</sup> · (1 − p)<sup>β − 1</sup> &nbsp;&nbsp; pour p ∈ [0, 1]
           </div>
-          <p>
-            Elle reste strictement bornée entre 0 et 1, épouse l’asymétrie des faibles taux de défaut et assure la conjugaison algébrique.
-          </p>
         </div>
 
         <div class="theory-block">
-          <h3>4. Pseudo-données, poids du prior et choix de la croyance initiale</h3>
+          <h3>4. Pseudo-données, choix du poids n<sub>0</sub> et familles de priors</h3>
           <p>
-            Dans la mise à jour <strong>Bêta(α<sub>0</sub> + d, β<sub>0</sub> + n − d)</strong>, les paramètres initiaux <strong>(α<sub>0</sub>, β<sub>0</sub>)</strong> s’interprètent directement comme des <strong>pseudo-données</strong> (un portefeuille fictif de départ composé de <em>α<sub>0</sub></em> défauts virtuels et <em>β<sub>0</sub></em> contreparties saines virtuelles), que l’on additionne aux <strong>données réelles</strong> observées (<em>d</em> défauts effectifs et <em>n − d</em> sains effectifs).
-          </p>
-          <p>
-            <strong>Quel est l’intérêt de ces pseudo-données et que représente le poids ?</strong> Elles permettent de quantifier la force de notre croyance initiale. La somme <strong>n<sub>0</sub> = α<sub>0</sub> + β<sub>0</sub></strong> constitue le <strong>poids du prior</strong> : elle pondère la PD a priori <em>μ<sub>0</sub> = α<sub>0</sub> / (α<sub>0</sub> + β<sub>0</sub>)</em> face au taux empirique réel <em>d / n</em> pondéré par la taille d’échantillon <em>n</em> :
+            Dans <strong>Bêta(α<sub>0</sub> + d, β<sub>0</sub> + n − d)</strong>, <strong>(α<sub>0</sub>, β<sub>0</sub>)</strong> jouent le rôle de <strong>pseudo-données</strong> (<em>α<sub>0</sub></em> défauts virtuels et <em>β<sub>0</sub></em> sains virtuels) additionnées aux <strong>données réelles</strong> (<em>d</em> défauts et <em>n − d</em> sains). Leur somme <strong>n<sub>0</sub> = α<sub>0</sub> + β<sub>0</sub></strong> est le <strong>poids du prior</strong> dans la moyenne <em>posterior</em> :
           </p>
           <div class="formula-callout">
             E[p | d, n] = [ n<sub>0</sub> / (n<sub>0</sub> + n) ] · μ<sub>0</sub> + [ n / (n<sub>0</sub> + n) ] · (d / n)
           </div>
           <p>
-            Chaque famille de <em>prior</em> traduit ainsi une croyance différente et un poids spécifique :
+            <strong>Comment choisir n<sub>0</sub> au-delà de la forme ?</strong> Si tu disposes d’un historique (par exemple 40 observations sur 5 ans), un <em>n<sub>0</sub></em> comparable (ex. 40) équilibre passé et données récentes ; un <em>n<sub>0</sub></em> plus grand (ex. 100, 200 ou 400) renforce fortement l’ancrage sur la référence quand elle est jugée très fiable (au risque d’atténuer la réaction à un changement récent) ; un <em>n<sub>0</sub></em> très faible (ex. 1) laisse vite dominer les données réelles. Le choix doit toujours être justifié a priori.
           </p>
           <ul>
-            <li><strong>Uniforme Bêta(1, 1) :</strong> traduit l’absence de préférence entre les valeurs de <em>p</em> sur [0, 1] (toutes les PD de 0 % à 100 % sont jugées équiprobables avant observation), avec un poids faible <em>n<sub>0</sub> = 2</em> et une moyenne a priori de 50 % (peu réaliste en crédit si <em>n</em> est petit).</li>
-            <li><strong>Jeffreys Bêta(0.5, 0.5) :</strong> prior non informatif de référence, très léger (<em>n<sub>0</sub> = 1</em>), qui laisse rapidement parler les données dès que <em>n</em> augmente.</li>
-            <li><strong>Informatif Bêta(α<sub>0</sub>, β<sub>0</sub>) :</strong> traduit une croyance métier ciblée (par exemple une PD benchmark <em>μ<sub>0</sub> = 1,5 %</em>) avec un poids <em>n<sub>0</sub></em> choisi selon la confiance accordée à cette référence.</li>
+            <li><strong>Uniforme Bêta(1, 1) :</strong> aucune préférence entre 0 % et 100 % avant observation (<em>n<sub>0</sub> = 2</em>, moyenne a priori 50 %).</li>
+            <li><strong>Jeffreys Bêta(0.5, 0.5) :</strong> prior de référence à poids très léger (<em>n<sub>0</sub> = 1</em>), construit à partir du modèle lui-même. Sa forme en « U » accorde davantage de poids aux bornes 0 et 1 : il s’efface vite quand <em>n</em> grandit, mais sur un très petit <em>n</em> il n’est pas neutre et tire vers les extrêmes.</li>
+            <li><strong>Informatif Bêta(α<sub>0</sub>, β<sub>0</sub>) :</strong> traduit une croyance métier ciblée (PD benchmark <em>μ<sub>0</sub></em> et poids <em>n<sub>0</sub></em>). Quand <em>n</em> est petit, le prior pèse fortement ; quand <em>n</em> devient grand, <em>n / (n<sub>0</sub> + n)</em> tend vers 1 et l’influence du prior s’efface.</li>
           </ul>
-          <p>
-            <strong>Règle de gouvernance et effet sur le résultat :</strong> le choix du <em>prior</em> doit toujours reposer sur une justification explicite (dire d’expert, benchmark sectoriel, historique externe). Lorsque l’échantillon réel <em>n</em> est petit, ce choix influence directement la PD <em>posterior</em> ; à l’inverse, lorsque <em>n</em> devient grand, le poids des données <em>n / (n<sub>0</sub> + n)</em> tend vers 1 et l’influence du <em>prior</em> s’efface au profit des observations réelles.
-          </p>
           ${buildBetaShapesSvg()}
         </div>
 
         <div class="theory-block">
           <h3>5. Application au Mode 1 : portefeuille à faible défaut (LDP)</h3>
           <p>
-            Sur un portefeuille <strong>LDP</strong> ou un petit échantillon, l’estimateur fréquentiste <em>d / n</em> est discontinu et instable : sur <em>n = 4</em> expositions par exemple, 0 défaut donne 0 %, 1 défaut fait bondir la PD à 25 %, et 2 défauts à 50 %. Sur un segment avec 0 défaut (<em>d = 0</em>), il affiche 0,00 %, ce qui est difficilement défendable en gestion des risques.
+            En LDP ou sur petit échantillon, l’estimateur fréquentiste <em>d / n</em> est discret et instable (sur <em>n = 4</em>, 0 défaut donne 0 %, 1 défaut passe à 25 %, 2 défauts à 50 % ; avec <em>d = 0</em>, il reste à 0,00 %).
           </p>
           <p>
-            L’approche bayésienne régularise cette estimation : tant que le volume d’observations <em>n</em> reste limité, le <em>prior</em> stabilise la PD estimée autour de la croyance initiale <em>μ<sub>0</sub></em> au lieu de la laisser tomber à 0 % ou bondir brutalement, tout en rendant transparente la sensibilité du résultat au poids <em>n<sub>0</sub></em> choisi.
+            Le <em>prior</em> régularise cette estimation : quand <em>n</em> est faible, il stabilise la PD autour de la croyance initiale <em>μ<sub>0</sub></em> au lieu de la laisser chuter à 0 % ou sauter brusquement, tout en restant sensible au poids <em>n<sub>0</sub></em> choisi.
           </p>
         </div>
       `;
@@ -1226,4 +1212,4 @@
   } else {
     init();
   }
-})(); 
+})();
