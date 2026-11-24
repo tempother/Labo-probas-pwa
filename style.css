@@ -453,16 +453,21 @@ table.mk-table input.cell-error {
 table.mk-table {
   width: max-content;
   min-width: 100%;
+  table-layout: auto;
+  border-collapse: collapse;
 }
 
 table.mk-table th,
 table.mk-table td {
-  min-width: 84px;
+  min-width: 58px;
   white-space: nowrap;
+  box-sizing: border-box;
 }
 
 table.mk-table input {
-  min-width: 76px;
-  width: 100%;
+  min-width: 48px;
+  width: auto;
+  field-sizing: content;
   box-sizing: border-box;
 }
+
