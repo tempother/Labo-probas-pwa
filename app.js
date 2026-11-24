@@ -1148,50 +1148,31 @@
     const byCustomAlpha = document.getElementById("by-custom-alpha");
     const byCustomBeta = document.getElementById("by-custom-beta");
 
-    if (byN) {
-      byN.addEventListener("input", () => {
-        if (byN.value === "") return;
-        const parsed = parseInt(byN.value, 10);
-        if (!Number.isFinite(parsed) || parsed < 1) return;
-        state.bayes.n = parsed;
-        if (state.bayes.d > state.bayes.n) {
-          state.bayes.d = state.bayes.n;
-          if (byD) byD.value = String(state.bayes.d);
-        }
-        saveState();
-        updateBayesLabOutput();
-      });
-      byN.addEventListener("blur", () => {
-        const parsed = parseInt(byN.value, 10);
-        state.bayes.n = Number.isFinite(parsed) && parsed >= 1 ? parsed : 1;
-        byN.value = String(state.bayes.n);
-        if (state.bayes.d > state.bayes.n) {
-          state.bayes.d = state.bayes.n;
-          if (byD) byD.value = String(state.bayes.d);
-        }
-        saveState();
-        updateBayesLabOutput();
-      });
-    }
+      if (byN) {
+    byN.addEventListener("input", () => {
+      state.bayes.n = byN.value;
+      saveState();
+      updateBayesLabOutput();
+    });
+    byN.addEventListener("blur", () => {
+      state.bayes.n = byN.value;
+      saveState();
+      updateBayesLabOutput();
+    });
+  }
 
-    if (byD) {
-      byD.addEventListener("input", () => {
-        if (byD.value === "") return;
-        const parsed = parseInt(byD.value, 10);
-        if (!Number.isFinite(parsed) || parsed < 0) return;
-        state.bayes.d = Math.min(state.bayes.n, parsed);
-        saveState();
-        updateBayesLabOutput();
-      });
-      byD.addEventListener("blur", () => {
-        const parsed = parseInt(byD.value, 10);
-        state.bayes.d =
-          Number.isFinite(parsed) && parsed >= 0 ? Math.min(state.bayes.n, parsed) : 0;
-        byD.value = String(state.bayes.d);
-        saveState();
-        updateBayesLabOutput();
-      });
-    }
+      if (byD) {
+    byD.addEventListener("input", () => {
+      state.bayes.d = byD.value;
+      saveState();
+      updateBayesLabOutput();
+    });
+    byD.addEventListener("blur", () => {
+      state.bayes.d = byD.value;
+      saveState();
+      updateBayesLabOutput();
+    });
+  }
 
     if (byPriorType) {
       byPriorType.addEventListener("change", () => {
