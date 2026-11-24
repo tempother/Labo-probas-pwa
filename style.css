@@ -444,10 +444,3 @@ table.mk-table input.cell-error {
   background: #ffffff;
   flex-shrink: 0;
 }
-table th,
-table td,
-table input {
-  min-width: 56px;
-  width: auto;
-  box-sizing: border-box;
-}
