@@ -1036,6 +1036,7 @@
       betaN,
       freqPd,
       postMode,
+      postMean,
       postSd,
       ciLow,
       ciHigh,
