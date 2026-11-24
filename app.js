@@ -913,92 +913,103 @@
     `;
   }
 
-  function computeBayesMetrics(b) {
-      const rawN = String(b.n ?? "").trim().replace(",", ".");
-  const rawD = String(b.d ?? "").trim().replace(",", ".");
-
-  if (rawN === "" || rawD === "" || rawN === "-" || rawD === "-") {
-    return {
-      status: "pending",
-      message: "En attente d’une valeur valide pour l’effectif (n) et les défauts (d)..."
-    };
-  }
-
-  const n = Number(rawN);
-  const d = Number(rawD);
-
-  if (!Number.isFinite(n) || !Number.isFinite(d) || n < 0 || d < 0) {
-    return {
-      status: "error",
-      message: "L’effectif et le nombre de défauts doivent être positifs ou nuls."
-    };
-  }
-
-  if (d > n) {
-    return {
-      status: "error",
-      message: "Le nombre de défauts (d) ne peut pas dépasser l’effectif (n)."
-    };
-  }
-
-    const s = n - d;
-      const notes = [];
-  if (n === 0 && d === 0) {
-    notes.push("Aucune observation (n = 0) : les résultats reflètent uniquement la loi a priori.");
-  }
-
-  if (b.priorType === "informative") {
-    const rawPd = String(b.targetPdPct ?? "").trim().replace(",", ".");
-    const rawW = String(b.priorWeight ?? "").trim().replace(",", ".");
-    if (rawPd === "" || rawW === "" || rawPd === "-" || rawW === "-") {
-      return {
-        status: "pending",
-        message: "En attente d’une valeur valide pour la PD cible et le poids..."
-      };
-    }
-    const pd = Number(rawPd);
-    const w = Number(rawW);
-    if (!Number.isFinite(pd) || pd <= 0 || pd >= 100) {
-      return {
-        status: "error",
-        message: "La PD cible doit être strictement comprise entre 0 % et 100 %."
-      };
-    }
-    if (!Number.isFinite(w) || w < 0) {
-      return {
-        status: "error",
-        message: "Le poids de l’a priori ne peut pas être négatif."
-      };
-    }
-    if (w === 0) {
-      notes.push("Poids nul : l’a priori n’a aucun impact sur les données observées.");
-    }
-  } else if (b.priorType === "custom") {
-    const rawAlpha = String(b.customAlpha ?? "").trim().replace(",", ".");
-    const rawBeta = String(b.customBeta ?? "").trim().replace(",", ".");
-    if (rawAlpha === "" || rawBeta === "" || rawAlpha === "-" || rawBeta === "-") {
-      return {
-        status: "pending",
-        message: "En attente d’une valeur valide pour alpha et bêta..."
-      };
-    }
-    const alpha = Number(rawAlpha);
-    const beta = Number(rawBeta);
-    if (!Number.isFinite(alpha) || alpha <= 0 || !Number.isFinite(beta) || beta <= 0) {
-      return {
-        status: "error",
-        message: "Les paramètres alpha et bêta doivent être strictement positifs."
-      };
-    }
-  }
+    function computeBayesMetrics(b) {
     const { alpha0, beta0 } = getPriorParams(b);
     const n0 = alpha0 + beta0;
+    const priorMean = n0 > 0 ? alpha0 / n0 : 0;
+    const priorMeta = { alpha0, beta0, n0, priorMean };
+
+    const rawN = String(b.n ?? "").trim().replace(",", ".");
+    const rawD = String(b.d ?? "").trim().replace(",", ".");
+
+    if (rawN === "" || rawD === "" || rawN === "-" || rawD === "-") {
+      return {
+        ...priorMeta,
+        status: "pending",
+        message: "En attente d’une valeur valide pour l’effectif (n) et les défauts (d)..."
+      };
+    }
+
+    const n = Number(rawN);
+    const d = Number(rawD);
+
+    if (!Number.isFinite(n) || !Number.isFinite(d) || n < 0 || d < 0) {
+      return {
+        ...priorMeta,
+        status: "error",
+        message: "L’effectif et le nombre de défauts doivent être positifs ou nuls."
+      };
+    }
+
+    if (d > n) {
+      return {
+        ...priorMeta,
+        status: "error",
+        message: "Le nombre de défauts (d) ne peut pas dépasser l’effectif (n)."
+      };
+    }
+
+    const s = n - d;
+    const notes = [];
+    if (n === 0 && d === 0) {
+      notes.push("Aucune observation (n = 0) : les résultats reflètent uniquement la loi a priori.");
+    }
+
+    if (b.priorType === "informative") {
+      const rawPd = String(b.targetPdPct ?? "").trim().replace(",", ".");
+      const rawW = String(b.priorWeight ?? "").trim().replace(",", ".");
+      if (rawPd === "" || rawW === "" || rawPd === "-" || rawW === "-") {
+        return {
+          ...priorMeta,
+          status: "pending",
+          message: "En attente d’une valeur valide pour la PD cible et le poids..."
+        };
+      }
+      const pd = Number(rawPd);
+      const w = Number(rawW);
+      if (!Number.isFinite(pd) || pd <= 0 || pd >= 100) {
+        return {
+          ...priorMeta,
+          status: "error",
+          message: "La PD cible doit être strictement comprise entre 0 % et 100 %."
+        };
+      }
+      if (!Number.isFinite(w) || w < 0) {
+        return {
+          ...priorMeta,
+          status: "error",
+          message: "Le poids de l’a priori ne peut pas être négatif."
+        };
+      }
+      if (w === 0) {
+        notes.push("Poids nul : l’a priori n’a aucun impact sur les données observées.");
+      }
+    } else if (b.priorType === "custom") {
+      const rawAlpha = String(b.customAlpha ?? "").trim().replace(",", ".");
+      const rawBeta = String(b.customBeta ?? "").trim().replace(",", ".");
+      if (rawAlpha === "" || rawBeta === "" || rawAlpha === "-" || rawBeta === "-") {
+        return {
+          ...priorMeta,
+          status: "pending",
+          message: "En attente d’une valeur valide pour alpha et bêta..."
+        };
+      }
+      const alpha = Number(rawAlpha);
+      const beta = Number(rawBeta);
+      if (!Number.isFinite(alpha) || alpha <= 0 || !Number.isFinite(beta) || beta <= 0) {
+        return {
+          ...priorMeta,
+          status: "error",
+          message: "Les paramètres alpha et bêta doivent être strictement positifs."
+        };
+      }
+    }
+
     const alphaN = alpha0 + d;
     const betaN = beta0 + s;
     const totalN = n0 + n;
 
     const freqPd = n > 0 ? d / n : null;
-    const priorMean = alpha0 / n0;
     const postMean = alphaN / totalN;
     const postMode =
       alphaN > 1 && betaN > 1
@@ -1014,20 +1025,16 @@
     const wDataPct = (n / totalN) * 100;
 
     return {
-          status: "ok",
-    message: "",
-    notes,
+      ...priorMeta,
+      status: "ok",
+      message: "",
+      notes,
       n,
       d,
       s,
-      alpha0,
-      beta0,
-      n0,
       alphaN,
       betaN,
       freqPd,
-      priorMean,
-      postMean,
       postMode,
       postSd,
       ciLow,
@@ -1036,6 +1043,7 @@
       wDataPct
     };
   }
+
 
   function renderBayesPriorMetaHtml(b, m) {
     if (b.priorType === "informative") {
