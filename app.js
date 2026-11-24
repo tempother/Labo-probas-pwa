@@ -167,11 +167,11 @@
       state.horizon = horizon;
       state.matrix = resizeMatrix(n, mode, parsed.matrix);
 
-      if (parsed.bayes && typeof parsed.bayes === "object") {
+            if (parsed.bayes && typeof parsed.bayes === "object") {
         state.bayes = {
           ...state.bayes,
-          n: Math.max(1, parseInt(parsed.bayes.n, 10) || 60),
-          d: Math.max(0, parseInt(parsed.bayes.d, 10) || 0),
+          n: parsed.bayes.n !== undefined ? parsed.bayes.n : state.bayes.n,
+          d: parsed.bayes.d !== undefined ? parsed.bayes.d : state.bayes.d,
           priorType: ["informative", "uniform", "jeffreys", "custom"].includes(parsed.bayes.priorType)
             ? parsed.bayes.priorType
             : "informative",
@@ -181,8 +181,8 @@
           customBeta: Math.max(0.05, Number(parsed.bayes.customBeta) || 49),
           credLevel: parsed.bayes.credLevel === 0.9 ? 0.9 : 0.95
         };
-        if (state.bayes.d > state.bayes.n) state.bayes.d = state.bayes.n;
       }
+
     } catch (_) {
       state.matrix = buildCleanMatrix(state.nStates, state.mode);
     }
@@ -1123,8 +1123,8 @@
       <div class="card">
         <h3>1. Données &amp; prior</h3>
         <div class="form-grid">
-          <label class="field"><span>Expositions n</span><input id="by-n" type="number" inputmode="numeric" step="1" min="1" value="${m.n}" /></label>
-          <label class="field"><span>Défauts d</span><input id="by-d" type="number" inputmode="numeric" step="1" min="0" max="${m.n}" value="${m.d}" /></label>
+          <label class="field"><span>Expositions n</span><input id="by-n" type="number" inputmode="numeric" step="1" min="0" value="${b.n}" /></label>
+<label class="field"><span>Défauts d</span><input id="by-d" type="number" inputmode="numeric" step="1" min="0" value="${b.d}" /></label>
           <label class="field"><span>Prior</span><select id="by-prior-type"><option value="informative" ${b.priorType === "informative" ? "selected" : ""}>Informatif</option><option value="uniform" ${b.priorType === "uniform" ? "selected" : ""}>Uniforme Bêta(1,1)</option><option value="jeffreys" ${b.priorType === "jeffreys" ? "selected" : ""}>Jeffreys Bêta(0.5,0.5)</option><option value="custom" ${b.priorType === "custom" ? "selected" : ""}>Personnalisé</option></select></label>
           <label class="field"><span>Crédibilité</span><select id="by-cred"><option value="0.95" ${b.credLevel === 0.95 ? "selected" : ""}>95 %</option><option value="0.9" ${b.credLevel === 0.9 ? "selected" : ""}>90 %</option></select></label>
         </div>
