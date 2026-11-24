@@ -444,3 +444,9 @@ table.mk-table input.cell-error {
   background: #ffffff;
   flex-shrink: 0;
 }
+table th,
+table td {
+  font-size: 11px;
+  padding: 4px 3px;
+  white-space: nowrap;
+}
