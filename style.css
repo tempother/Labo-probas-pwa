@@ -453,3 +453,11 @@ table.mk-table input.cell-error {
   -webkit-overflow-scrolling: touch;
   max-width: 100%;
 }
+.table-wrap table,
+.matrix-wrap table,
+.table-responsive table,
+[id*="matrix"] table,
+[class*="matrix"] table {
+  min-width: 780px;
+  width: max-content;
+}
