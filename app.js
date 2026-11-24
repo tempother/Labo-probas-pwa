@@ -626,6 +626,7 @@
     const validation = validateMatrix(state.matrix, state.mode);
     if (!validation.valid) {
       els.mkResultsContent.innerHTML = `<div class="error-box"><strong>Calcul bloqué :</strong> corrige d’abord les lignes ou cellules en rouge dans l’onglet <strong>Inputs</strong>.</div>`;
+      window.scrollTo(0, 0);
       return;
     }
 
@@ -700,6 +701,7 @@
       ${formatMatrixTable(`Modèle continu (JLT) : exp(${k} · Q<sub>JLT</sub>)`, expQ_jlt, true)}
       ${irwSection}
     `;
+    window.scrollTo(0, 0);
   }
 
   function buildBetaShapesSvg() {
