@@ -444,3 +444,25 @@ table.mk-table input.cell-error {
   background: #ffffff;
   flex-shrink: 0;
 }
+#mk-matrix-wrapper {
+  overflow-x: auto;
+  max-width: 100%;
+  -webkit-overflow-scrolling: touch;
+}
+
+table.mk-table {
+  width: max-content;
+  min-width: 100%;
+}
+
+table.mk-table th,
+table.mk-table td {
+  min-width: 84px;
+  white-space: nowrap;
+}
+
+table.mk-table input {
+  min-width: 76px;
+  width: 100%;
+  box-sizing: border-box;
+}
