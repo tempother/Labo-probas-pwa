@@ -1321,7 +1321,7 @@
 
     if (els.appTitle && els.appSubtitle) {
       if (viewName === "home") {
-        els.appTitle.textContent = "Labo Probas & Risque";
+        els.appTitle.textContent = "Labo RQF";
         els.appSubtitle.textContent = "100 % local • Sans serveur • Sans suivi";
       } else if (viewName === "markov") {
         els.appTitle.textContent = "Module 1 — Chaînes de Markov";
