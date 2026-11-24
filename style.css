@@ -445,8 +445,9 @@ table.mk-table input.cell-error {
   flex-shrink: 0;
 }
 table th,
-table td {
-  font-size: 11px;
-  padding: 4px 3px;
-  white-space: nowrap;
+table td,
+table input {
+  min-width: 56px;
+  width: auto;
+  box-sizing: border-box;
 }
