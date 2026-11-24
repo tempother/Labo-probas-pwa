@@ -1368,15 +1368,18 @@
       card.addEventListener("click", () => {
         const mod = card.dataset.openModule;
         if (mod) setView(mod);
+        window.scrollTo(0, 0);
       });
     });
 
     document.querySelectorAll("[data-markov-tab]").forEach((btn) => {
       btn.addEventListener("click", () => setMarkovTab(btn.dataset.markovTab));
+      window.scrollTo(0, 0);
     });
 
     document.querySelectorAll("[data-bayes-tab]").forEach((btn) => {
       btn.addEventListener("click", () => setBayesTab(btn.dataset.bayesTab));
+      window.scrollTo(0, 0);
     });
 
     if (els.mkStates) {
