@@ -424,3 +424,23 @@ table.mk-table input.cell-error {
   padding: 0 0.2rem;
   color: #38bdf8;
 }
+.topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.topbar-title {
+  flex: 1;
+  min-width: 0;
+}
+
+.topbar-logo {
+  width: 42px;
+  height: 42px;
+  object-fit: contain;
+  border-radius: 6px;
+  background: #ffffff;
+  flex-shrink: 0;
+}
