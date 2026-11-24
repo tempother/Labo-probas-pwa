@@ -444,3 +444,12 @@ table.mk-table input.cell-error {
   background: #ffffff;
   flex-shrink: 0;
 }
+.table-wrap,
+.matrix-wrap,
+.table-responsive,
+[id*="matrix"],
+[class*="matrix"] {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  max-width: 100%;
+}
