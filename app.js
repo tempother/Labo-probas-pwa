@@ -914,16 +914,90 @@
   }
 
   function computeBayesMetrics(b) {
-    const n = Math.max(1, parseInt(b.n, 10) || 1);
-    const d = Math.min(n, Math.max(0, parseInt(b.d, 10) || 0));
+      const rawN = String(b.n ?? "").trim().replace(",", ".");
+  const rawD = String(b.d ?? "").trim().replace(",", ".");
+
+  if (rawN === "" || rawD === "" || rawN === "-" || rawD === "-") {
+    return {
+      status: "pending",
+      message: "En attente d’une valeur valide pour l’effectif (n) et les défauts (d)..."
+    };
+  }
+
+  const n = Number(rawN);
+  const d = Number(rawD);
+
+  if (!Number.isFinite(n) || !Number.isFinite(d) || n < 0 || d < 0) {
+    return {
+      status: "error",
+      message: "L’effectif et le nombre de défauts doivent être positifs ou nuls."
+    };
+  }
+
+  if (d > n) {
+    return {
+      status: "error",
+      message: "Le nombre de défauts (d) ne peut pas dépasser l’effectif (n)."
+    };
+  }
+
     const s = n - d;
+      const notes = [];
+  if (n === 0 && d === 0) {
+    notes.push("Aucune observation (n = 0) : les résultats reflètent uniquement la loi a priori.");
+  }
+
+  if (b.priorType === "informative") {
+    const rawPd = String(b.targetPdPct ?? "").trim().replace(",", ".");
+    const rawW = String(b.priorWeight ?? "").trim().replace(",", ".");
+    if (rawPd === "" || rawW === "" || rawPd === "-" || rawW === "-") {
+      return {
+        status: "pending",
+        message: "En attente d’une valeur valide pour la PD cible et le poids..."
+      };
+    }
+    const pd = Number(rawPd);
+    const w = Number(rawW);
+    if (!Number.isFinite(pd) || pd <= 0 || pd >= 100) {
+      return {
+        status: "error",
+        message: "La PD cible doit être strictement comprise entre 0 % et 100 %."
+      };
+    }
+    if (!Number.isFinite(w) || w < 0) {
+      return {
+        status: "error",
+        message: "Le poids de l’a priori ne peut pas être négatif."
+      };
+    }
+    if (w === 0) {
+      notes.push("Poids nul : l’a priori n’a aucun impact sur les données observées.");
+    }
+  } else if (b.priorType === "custom") {
+    const rawAlpha = String(b.customAlpha ?? "").trim().replace(",", ".");
+    const rawBeta = String(b.customBeta ?? "").trim().replace(",", ".");
+    if (rawAlpha === "" || rawBeta === "" || rawAlpha === "-" || rawBeta === "-") {
+      return {
+        status: "pending",
+        message: "En attente d’une valeur valide pour alpha et bêta..."
+      };
+    }
+    const alpha = Number(rawAlpha);
+    const beta = Number(rawBeta);
+    if (!Number.isFinite(alpha) || alpha <= 0 || !Number.isFinite(beta) || beta <= 0) {
+      return {
+        status: "error",
+        message: "Les paramètres alpha et bêta doivent être strictement positifs."
+      };
+    }
+  }
     const { alpha0, beta0 } = getPriorParams(b);
     const n0 = alpha0 + beta0;
     const alphaN = alpha0 + d;
     const betaN = beta0 + s;
     const totalN = n0 + n;
 
-    const freqPd = d / n;
+    const freqPd = n > 0 ? d / n : null;
     const priorMean = alpha0 / n0;
     const postMean = alphaN / totalN;
     const postMode =
@@ -940,6 +1014,9 @@
     const wDataPct = (n / totalN) * 100;
 
     return {
+          status: "ok",
+    message: "",
+    notes,
       n,
       d,
       s,
@@ -971,6 +1048,21 @@
   }
 
   function renderBayesDynamicHtml(b, m) {
+      if (m && (m.status === "pending" || m.status === "error")) {
+    const isErr = m.status === "error";
+    return `
+      <div class="${isErr ? "warn-box" : "helper-text"}" role="${isErr ? "alert" : "status"}">
+        <strong>${isErr ? "Entrée invalide :" : "En attente :"}</strong> ${m.message || "—"}
+      </div>
+      <div class="bayes-kpi-grid">
+        <div class="kpi-box"><div class="kpi-label">Moyenne a posteriori</div><div class="kpi-value">—</div></div>
+        <div class="kpi-box"><div class="kpi-label">Médiane / Mode</div><div class="kpi-value">—</div></div>
+        <div class="kpi-box"><div class="kpi-label">Écart-type</div><div class="kpi-value">—</div></div>
+        <div class="kpi-box"><div class="kpi-label">Intervalle de crédibilité</div><div class="kpi-value">—</div></div>
+        <div class="kpi-box"><div class="kpi-label">PD fréquentiste</div><div class="kpi-value">—</div></div>
+      </div>
+    `;
+  }
     return `
       <div class="formula-callout">Posterior : Bêta(${m.alphaN.toFixed(2)}, ${m.betaN.toFixed(2)})</div>
       <div class="bayes-kpi-grid">
@@ -983,6 +1075,7 @@
       <div class="weight-bar"><div class="weight-prior" style="width:${m.wPriorPct.toFixed(1)}%"></div><div class="weight-data" style="width:${m.wDataPct.toFixed(1)}%"></div></div>
       ${m.d === 0 ? `<div class="warn-box"><strong>d = 0 :</strong> fréquentiste = 0,00 %, moyenne posterior = <strong>${(m.postMean * 100).toFixed(2)} %</strong>.</div>` : ""}
       ${buildPosteriorChartSvg(m.alpha0, m.beta0, m.alphaN, m.betaN, m.freqPd, m.ciLow, m.ciHigh, b.credLevel)}
+      ${Array.isArray(m.notes) && m.notes.length > 0 ? `<div class="helper-text">${m.notes.join("<br>")}</div>` : ""}
     `;
   }
 
