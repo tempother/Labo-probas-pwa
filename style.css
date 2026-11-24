@@ -470,4 +470,24 @@ table.mk-table input {
   field-sizing: content;
   box-sizing: border-box;
 }
+#mk-results-content {
+  max-width: 100%;
+  overflow-x: hidden;
+  box-sizing: border-box;
+}
 
+#mk-results-content table {
+  display: block;
+  max-width: 100%;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  width: max-content;
+  border-collapse: collapse;
+}
+
+#mk-results-content th,
+#mk-results-content td {
+  min-width: 58px;
+  white-space: nowrap;
+  box-sizing: border-box;
+}
